@@ -4,6 +4,7 @@ import java.util.*;
 
 import prev.data.mem.*;
 import prev.Compiler;
+import prev.common.report.Report;
 import prev.data.asm.*;
 import prev.phase.*;
 import prev.phase.asmgen.*;
@@ -18,164 +19,124 @@ public class RegAll extends Phase {
 	/** Mapping of temporary variables to registers. */
 	public final HashMap<MemTemp, Integer> tempToReg = new HashMap<MemTemp, Integer>();
 
-	LiveAn livean;
+	LiveAn livenessAnalysis;
 
 	public RegAll() {
 		super("regall");
-		livean = new LiveAn();
+		livenessAnalysis = new LiveAn();
 	}
 
-	private HashMap<MemTemp, HashSet<MemTemp>> copyInterferenceGraph(HashMap<MemTemp, HashSet<MemTemp>> interferenceGraph) {
-		HashMap<MemTemp, HashSet<MemTemp>> newInterferenceGraph = new HashMap<MemTemp, HashSet<MemTemp>>();
-		for (MemTemp temporary : interferenceGraph.keySet()) {
-			HashSet<MemTemp> mappings = new HashSet<MemTemp>(interferenceGraph.get(temporary));
-			newInterferenceGraph.put(temporary, mappings);
-		}
-		return newInterferenceGraph;
-	}
+	/**
+	 * Construct the interference graph between instructions
+	 * @param code
+	 * @return
+	 */
+	private Graph build(Code code) {
+		Graph graph = new Graph();
 
-	public HashMap<MemTemp, HashSet<MemTemp>> buildInterferenceGraph(Code code) {
-		HashMap<MemTemp, HashSet<MemTemp>> interferenceGraph = new HashMap<MemTemp, HashSet<MemTemp>>();
+		// First, perform liveness analysis on received code
+		livenessAnalysis.analysis(code);
 
-		// Re-run liveness analysis because the code might have been changed
-		livean.analysis(code);
-
+		// Then, add all defined and used temporaries to interference graph
 		for (AsmInstr instruction : code.instrs) {
-			for (MemTemp temporary : instruction.defs())
-				interferenceGraph.put(temporary, new HashSet<MemTemp>());
-			for (MemTemp temporary : instruction.uses())
-				interferenceGraph.put(temporary, new HashSet<MemTemp>());
+			for (MemTemp use : instruction.uses())
+				graph.addNode(use);
+			for (MemTemp defines : instruction.defs())
+				graph.addNode(defines);
 		}
 
-		for (AsmInstr instruction : code.instrs) {
-			HashSet<MemTemp> outTemporaries = instruction.out();
+		// Temporary that is defined in instruction interferes with all
+		// temporaries in the out set
+		for (AsmInstr instruction : code.instrs)
+			for (MemTemp definedTemporary : instruction.defs())
+				for (MemTemp outTemporary : instruction.out())
+					graph.addEdge(definedTemporary, outTemporary);
+		
+		// The frame pointer (FP) doesn't need to be coloured, so remove it from
+		// the graph
+		graph.removeNode(code.frame.FP);
 
-			for (MemTemp temporary : outTemporaries) {
-				if (!interferenceGraph.containsKey(temporary))
-					interferenceGraph.put(temporary, new HashSet<MemTemp>());
-				
-				HashSet<MemTemp> set = interferenceGraph.get(temporary);
-				set.addAll(outTemporaries);
-			}
-		}
-
-		for (MemTemp temporary : interferenceGraph.keySet()) {
-			interferenceGraph.get(temporary).remove(temporary);
-			interferenceGraph.get(temporary).remove(code.frame.FP);
-		}
-
-		// We don't want to color FP, so we remove it from graph now
-		interferenceGraph.remove(code.frame.FP);
-
-		return interferenceGraph;
+		return graph;
 	}
 
-	public boolean simplify(HashMap<MemTemp, HashSet<MemTemp>> interferenceGraph, Stack<MemTemp> temporaryStack) {
-		MemTemp selectedTemporary = null;
-		for (MemTemp temporary : interferenceGraph.keySet()) {
-			HashSet<MemTemp> neighbourhood = interferenceGraph.get(temporary);
-			if (neighbourhood.size() < Compiler.numberOfRegisters) {
-				// Choose this temporary
-				selectedTemporary = temporary;
-				break;
+	private boolean simplify(Graph interferenceGraph, Stack<Node> stack) {
+		// Find a node with degree < Compiler.numberOfRegisters
+		for (Node node : interferenceGraph.nodes()) {
+			if (node.degree() < Compiler.numberOfRegisters) {
+				interferenceGraph.removeNode(node.temporary);
+				stack.push(node);
+				return true;
 			}
 		}
-
-		if (selectedTemporary == null) {
-			// There is no node that has degree < R
-			return false;
-		} else {
-			// There is a node that has the degree < R
-			temporaryStack.push(selectedTemporary);
-			
-			HashSet<MemTemp> neighbourhood = interferenceGraph.get(selectedTemporary);
-			// Remove all connections between selectedTemporary -> t'
-			interferenceGraph.remove(selectedTemporary);
-			// Remove all inverse connections between t' -> selectedTemporary
-			for (MemTemp neighbour : neighbourhood) {
-				interferenceGraph.get(neighbour).remove(selectedTemporary);
-			}
-		}
-		
-		return true;
+		return false;
 	}
 
-	public MemTemp spill(HashMap<MemTemp, HashSet<MemTemp>> interferenceGraph, Stack<MemTemp> temporaryStack) {
-		// Select a node for spilling, it can be any node that has degree > R
-		MemTemp selectedTemporary = null;
-		for (MemTemp temporary : interferenceGraph.keySet()) {
-			HashSet<MemTemp> neighbourhood = interferenceGraph.get(temporary);
-			if (neighbourhood.size() >= Compiler.numberOfRegisters) {
-				// Choose this temporary
-				selectedTemporary = temporary;
-				break;
+	private Node spill(Graph interferenceGraph, Stack<Node> stack) {
+		int maximumDegree = Compiler.numberOfRegisters;
+		Node selectedNode = null;
+
+		for (Node node : interferenceGraph.nodes()) {
+			if (node.degree() >= maximumDegree) {
+				maximumDegree = node.degree();
+				selectedNode = node;
 			}
 		}
 
-		temporaryStack.push(selectedTemporary);
+		if (selectedNode == null)
+			return selectedNode;
 		
-		HashSet<MemTemp> neighbourhood = interferenceGraph.get(selectedTemporary);
-		// Remove all connections between selectedTemporary -> t'
-		interferenceGraph.remove(selectedTemporary);
-		// Remove all inverse connections between t' -> selectedTemporary
-		for (MemTemp neighbour : neighbourhood) {
-			interferenceGraph.get(neighbour).remove(selectedTemporary);
-		}
-		
-		return selectedTemporary;
+		selectedNode.potentialSpill = true;
+		interferenceGraph.removeNode(selectedNode.temporary);
+		stack.push(selectedNode);
+		return selectedNode;
 	}
 
-	public Vector<MemTemp> select(Code code, Stack<MemTemp> temporaryStack, HashMap<MemTemp, HashSet<MemTemp>> neighbours) {
+	private void coalesce() {}
+	private void freeze() {}
+
+	private Vector<MemTemp> select(Graph reconstructedGraph, HashMap<Node, HashSet<Node>> edges, Stack<Node> stack) {
+
 		Vector<MemTemp> spills = new Vector<MemTemp>();
 
-		// Set of current nodes (temporaries) in graph
-		HashSet<MemTemp> temporariesInGraph = new HashSet<MemTemp>();
+		boolean coloringFound = true;
 
-		// Pre-color the frame pointer
-		tempToReg.put(code.frame.FP, Integer.valueOf(253));
+		while (!stack.isEmpty()) {
+			Node currentNode = stack.pop();
 
-		while (!temporaryStack.empty()) {
-			MemTemp currentTemporary = temporaryStack.pop();
+			HashSet<Node> neighbours = reconstructedGraph.nodes();
+			neighbours.retainAll(edges.get(currentNode));
 
-			// Set of POSSIBLE NEIGHBOURS, not all neighbours are in the graph yet
-			HashSet<MemTemp> possibleNeighbours = neighbours.get(currentTemporary);
-			// Set of neighbours that are currently in the graph
-			Set<MemTemp> currentNeighbours = new HashSet<MemTemp>(temporariesInGraph);
-			currentNeighbours.retainAll(possibleNeighbours);
+			boolean isPossibleColour[] = new boolean[Compiler.numberOfRegisters];
+			for (int i = 0; i < isPossibleColour.length; i++)
+				isPossibleColour[i] = true;
 
-			// Try to colour this node with each possible colour [0,
-			// numberOfRegisters). If we can select a colour, then colour it and
-			// continue. Otherwise, this is a spill.
-			boolean occupiedColors[] = new boolean[Compiler.numberOfRegisters];
-			for (MemTemp neighbour : currentNeighbours) {
-				int neighbourColor = tempToReg.get(neighbour).intValue();
-				if (neighbourColor >= 0 && neighbourColor < Compiler.numberOfRegisters)
-					occupiedColors[neighbourColor] = true;
+			reconstructedGraph.addNode(currentNode);
+			for (Node neighbour : neighbours) {
+				reconstructedGraph.addEdge(currentNode, neighbour);
+				if (neighbour.color >= 0)
+					isPossibleColour[neighbour.color] = false;
 			}
 
-			int color = -1;
-			for (int i = 0; i < Compiler.numberOfRegisters; i++) {
-				if (!occupiedColors[i]) {
-					color = i;
+			for (int i = 0; i < isPossibleColour.length; i++) {
+				if (isPossibleColour[i]) {
+					currentNode.color = i;
 					break;
 				}
 			}
 
-			// If no color can be assigned to current temporary, that means that
-			// the temporary can not be colored. The code must be modified.
-			if (color < 0) {
-				spills.add(currentTemporary);
-				continue;
+			if (currentNode.color < 0) {
+				// No color has been found
+				currentNode.actualSpill = true;
+				coloringFound = false;
+				spills.add(currentNode.temporary);
 			}
-			
-			tempToReg.put(currentTemporary, Integer.valueOf(color));
-			temporariesInGraph.add(currentTemporary);
+
 		}
 
 		return spills;
 	}
 
-	public void modifyCode(Code code, Vector<MemTemp> spills) {
+	private void modifyCode(Code code, Vector<MemTemp> spills) {
 		for (MemTemp spill : spills) {
 			// A modified set of instructions that we are building.
 			Vector<AsmInstr> modifiedInstructions = new Vector<AsmInstr>();
@@ -273,48 +234,58 @@ public class RegAll extends Phase {
 	}
 
 	public void allocate() {
+
+		long start = System.currentTimeMillis();
 		for (Code code : AsmGen.codes) {
 
-			boolean coloringFound = true;
+			// System.out.println("REGISTER ALLOCATION: " + code.frame.label.name);
+			
+			boolean coloringFound;
+			Graph reconstructedGraph = null;
 			do {
-				Stack<MemTemp> temporaryStack = new Stack<MemTemp>();
-
-				// STEP 1: BUILD INTERFERENCE GRAPH
-				HashMap<MemTemp, HashSet<MemTemp>> originalInterferenceGraph = buildInterferenceGraph(code);
-				HashMap<MemTemp, HashSet<MemTemp>> interferenceGraph = copyInterferenceGraph(originalInterferenceGraph);
 				
-				Vector<MemTemp> potentialSpills = new Vector<MemTemp>();
-
-				while (!interferenceGraph.isEmpty()) {
-					// STEP 2: SIMPLIFY
-					boolean repeatSimplification;
+				// STEP 1: BUILD INTERFERENCE GRAPH
+				Graph interferenceGraph = this.build(code);
+				HashMap<Node, HashSet<Node>> edges = interferenceGraph.edges();
+				
+				Stack<Node> stack = new Stack<Node>();
+				do {
+					// STEP 2: PERFORM ONE STEP OF SIMPLIFICATION
+					boolean hasChanged;
 					do {
-						repeatSimplification = simplify(interferenceGraph, temporaryStack);
-					} while (repeatSimplification);
-
-					if (interferenceGraph.isEmpty())
-						break;
+						hasChanged = this.simplify(interferenceGraph, stack);
+					} while (hasChanged);
 
 					// STEP 3: SPILL
-					MemTemp spilledTemporary = spill(interferenceGraph, temporaryStack);
-					potentialSpills.add(spilledTemporary);
-				}
+					Node removedNode = this.spill(interferenceGraph, stack);
+				} while (!interferenceGraph.isEmpty());
 
-				// STEP 4: SELECT
-				Vector<MemTemp> spills = select(code, temporaryStack, originalInterferenceGraph);
-				coloringFound = spills.size() <= 0;
+				// STEP 4: SELECT - GRAPH COLORING
+				reconstructedGraph = new Graph();
+				Vector<MemTemp> spills = this.select(reconstructedGraph, edges, stack);
+				coloringFound = spills.size() == 0;
+
 				if (coloringFound)
 					break;
+				
+				// Coloring has not yet been found, the code must be modified
+				// STEP 5: MODIFY THE CODE
+				this.modifyCode(code, spills);
 
-				// STEP 5: MODIFYING CODE
-				// Each time the temporary Tn is defined (or redefined), we save it
-				// to our function frame. Each time it is used, we restore its value
-				// from memory.
-				modifyCode(code, spills);
+			} while (!coloringFound);
 
-			} while(!coloringFound);
+			// After coloring has been found, actually use register numbers to
+			// assign registers. The frame pointer was not present in the graph
+			// and is precolored to value 253.
+			this.tempToReg.put(code.frame.FP, 253);
+			for (Node node : reconstructedGraph.nodes()) {
+				this.tempToReg.put(node.temporary, node.color);
+			}
 
 		}
+		long end = System.currentTimeMillis();
+		Report.info("Register allocation time: " + (end - start));
+
 	}
 	
 	public void log() {
