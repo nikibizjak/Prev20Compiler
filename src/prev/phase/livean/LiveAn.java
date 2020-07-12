@@ -1,5 +1,6 @@
 package prev.phase.livean;
 
+import prev.common.report.*;
 import prev.data.mem.*;
 import prev.data.asm.*;
 import prev.phase.*;
@@ -19,73 +20,85 @@ public class LiveAn extends Phase {
 	}
 
 	public void analysis() {
+		long start = System.currentTimeMillis();
 		for (Code code : AsmGen.codes) {
 			analysis(code);
 		}
+		long end = System.currentTimeMillis();
+		// Report.info("Total time: " + (end - start));
 	}
 	
 	public void analysis(Code code) {
-
-		// Construct a map of label -> next instruction, so we can use this to
-		// get the successors of jump instructions
-		HashMap<MemLabel, AsmInstr> labelSuccessors = new HashMap<MemLabel, AsmInstr>();
-		Vector<AsmInstr> instructions = code.instrs;
-		for (int i = 0; i < instructions.size(); i++) {
-			AsmInstr instruction = instructions.get(i);
-			
-			// Set the in and out sets to empty sets
-			((AsmOPER) instruction).removeAllFromIn();
-			((AsmOPER) instruction).removeAllFromOut();
-
-			if (instruction instanceof AsmLABEL && (i + 1) < instructions.size()) {
-				labelSuccessors.put(((AsmLABEL) instruction).label, instructions.get(i + 1));
+		long start = System.currentTimeMillis();
+		HashMap<MemLabel, Integer> successors = new HashMap<MemLabel, Integer>();
+		for (int i = 0; i < code.instrs.size(); i++) {
+			AsmInstr instruction = code.instrs.get(i);
+			if (instruction instanceof AsmLABEL) {
+				successors.put(((AsmLABEL) instruction).label, i);
 			}
 		}
+		
+		for (int i = 0; i < code.instrs.size(); i++) {
+			AsmInstr instr = code.instrs.get(i);
+			if (!(instr instanceof AsmOPER))
+				continue;
+			AsmOPER instruction = (AsmOPER) instr;
+			instruction.removeAllFromIn();
+			instruction.removeAllFromOut();
+		}
 
-		// The hasChanged variable will start with value of false. If for
-		// any of the instructions, the sets will change, it will be set to
-		// true, which will signal our function to perform another
-		// iteration.
-		boolean hasChanged = false;
+		boolean repeat;
 		do {
-			hasChanged = false;
-			for (int i = 0; i < instructions.size(); i++) {
-				AsmInstr instruction = instructions.get(i);
+			repeat = false;
 
-				HashSet oldIn = instruction.in();
-				HashSet oldOut = instruction.out();
+			for (int i = code.instrs.size() - 1; i >= 0; i--) {
+				AsmInstr instr = code.instrs.get(i);
+				if (!(instr instanceof AsmOPER))
+					continue;
+				AsmOPER instruction = (AsmOPER) instr;
 
-				// COMPUTE THE NEW IN SET
-				// in(n)  = use(n) union [ out(n) minus def(n) ]
-				HashSet<MemTemp> newIn = instruction.out();
-				newIn.removeAll(instruction.defs());
-				newIn.addAll(instruction.uses());
-				instruction.addInTemps(newIn);
-				
-				// COMPUTE THE NEW OUT SET
-				// out(n) = union_{ n' = naslednik n-ja } [ in(n') ]
+				HashSet<MemTemp> previousIn = instruction.in();
+				HashSet<MemTemp> previousOut = instruction.out();
+
+				// Compute the new out set
 				HashSet<MemTemp> newOut = new HashSet<MemTemp>();
-				if (instruction.jumps().isEmpty() && (i + 1) < instructions.size()) {
-					// The instruction i only has one successor, the next
-					// instruction at index i + 1
-					AsmInstr successor = instructions.get(i + 1);
-					newOut.addAll(successor.in());
+				if (instr.jumps().size() < 1) {
+					if (i + 1 < code.instrs.size()) {
+						// There is only one direct successor (the i+1 instruction)
+						newOut.addAll(code.instrs.get(i + 1).in());
+					}
 				} else {
-					for (MemLabel label : instruction.jumps()) {
-						if (!labelSuccessors.containsKey(label))
+					// There are multiple possible successors
+					for (MemLabel label : instr.jumps()) {
+						Integer lineNumber = successors.get(label);
+						if (lineNumber == null) {
+							// System.out.println(label.name);
+							// System.out.println("There is no successor... " + lineNumber);
 							continue;
-						AsmInstr successor = labelSuccessors.get(label);
-						newOut.addAll(successor.in());
+						}
+						int line = lineNumber.intValue();
+						if (line < code.instrs.size()) {
+							newOut.addAll(code.instrs.get(line).in());
+						}
 					}
 				}
-				instruction.addOutTemp(newOut);
 
-				// There was a change for this specific instruction. If
-				// the hasChanged variable is not already set to true,
-				// set it now.
-				hasChanged = hasChanged || !(oldIn.equals(newIn) && oldOut.equals(newOut));
+				instruction.addOutTemps(newOut);
+
+				// Compute the new in set
+				HashSet<MemTemp> newIn = new HashSet<MemTemp>();
+				newIn.addAll(instr.out());
+				newIn.removeAll(instr.defs());
+				newIn.addAll(instr.uses());
+				instruction.addInTemps(newIn);
+
+				repeat = repeat || !newIn.equals(previousIn) || !newOut.equals(previousOut);
+
 			}
-		} while (hasChanged);
+
+		} while (repeat);
+		long end = System.currentTimeMillis();
+		// Report.info("Code " + code.frame.label.name + " time: " + (end - start));
 
 	}
 	
