@@ -94,7 +94,7 @@ public class AsmOPER extends AsmInstr {
 	}
 
 	@Override
-	public void addOutTemp(HashSet<MemTemp> out) {
+	public void addOutTemps(HashSet<MemTemp> out) {
 		this.out.addAll(out);
 	}
 

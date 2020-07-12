@@ -68,7 +68,7 @@ public abstract class AsmInstr {
 	 * 
 	 * @param out A set of temporaries to be added.
 	 */
-	public abstract void addOutTemp(HashSet<MemTemp> out);
+	public abstract void addOutTemps(HashSet<MemTemp> out);
 
 	/**
 	 * Returns a string representing this instruction with registers.
