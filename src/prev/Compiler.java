@@ -17,6 +17,7 @@ import prev.phase.imclin.*;
 import prev.phase.asmgen.*;
 import prev.phase.livean.*;
 import prev.phase.regall.*;
+import prev.phase.optimisation.*;
 
 /**
  * The compiler.
@@ -26,7 +27,7 @@ public class Compiler {
 	// COMMAND LINE ARGUMENTS
 
 	/** All valid phases of the compiler. */
-	private static final String phases = "none|lexan|synan|abstr|seman|memory|imcgen|imclin|asmgen|livean|regall|all";
+	private static final String phases = "none|lexan|synan|abstr|seman|memory|imcgen|optimisation|imclin|asmgen|livean|regall|all";
 
 	/** Values of command line arguments. */
 	private static HashMap<String, String> cmdLine = new HashMap<String, String>();
@@ -99,6 +100,12 @@ public class Compiler {
 					if (args[argc].matches("--num-regs=\\d+")) {
 						if (cmdLine.get("--num-regs") == null) {
 							cmdLine.put("--num-regs", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--constant-folding=.*")) {
+						if (cmdLine.get("--constant-folding") == null) {
+							cmdLine.put("--constant-folding", args[argc].replaceFirst("^[^=]*=", ""));
 							continue;
 						}
 					}
@@ -194,7 +201,6 @@ public class Compiler {
 				// Intermediate code generation.
 				try (ImcGen imcgen = new ImcGen()) {
 					Abstr.tree.accept(new CodeGenerator(), null);
-					ImcGen.exprImc.lock();
 					ImcGen.stmtImc.lock();
 					AbsLogger logger = new AbsLogger(imcgen.logger);
 					logger.addSubvisitor(new SemLogger(imcgen.logger));
@@ -205,6 +211,13 @@ public class Compiler {
 				if (Compiler.cmdLineArgValue("--target-phase").equals("imcgen"))
 					break;
 
+				try (Optimisation optimisation = new Optimisation()) {
+					optimisation.optimise();
+					ImcGen.exprImc.lock();
+				}
+				if (Compiler.cmdLineArgValue("--target-phase").equals("optimisation"))
+					break;
+				
 				// Linearization of intermediate code.
 				try (ImcLin imclin = new ImcLin()) {
 					Abstr.tree.accept(new ChunkGenerator(), null);
