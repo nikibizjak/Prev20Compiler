@@ -89,6 +89,7 @@ public class ExpressionConstantFolder implements ImcVisitor<ImcExpr, Object> {
             Long result = null;
             switch (imcUnop.oper) {
                 case NEG: result = constantExpression.value; break;
+                case NOT: result = (constantExpression.value == 1L) ? 0L : 1L;
             }
 
             if (result != null)
