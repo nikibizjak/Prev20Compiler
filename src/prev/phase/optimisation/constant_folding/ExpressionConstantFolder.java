@@ -7,7 +7,7 @@ import prev.data.imc.code.stmt.*;
 import prev.data.imc.visitor.*;
 
 /**
- * Expression canonizer.
+ * Expression constant folder.
  */
 public class ExpressionConstantFolder implements ImcVisitor<ImcExpr, Object> {
 
@@ -27,15 +27,19 @@ public class ExpressionConstantFolder implements ImcVisitor<ImcExpr, Object> {
                 case MUL: result = firstConstant.value * secondConstant.value; break;
                 case DIV: result = firstConstant.value / secondConstant.value; break;
                 case MOD: result = firstConstant.value % secondConstant.value; break;
+                case OR:
+                    result = ((firstConstant.value == 1L) || (secondConstant.value == 1L)) ? 1L : 0L;
+                    break;
+                case AND:
+                    result = ((firstConstant.value == 1L) && (secondConstant.value == 1L)) ? 1L : 0L;
+                    break;
+                case EQU: result = (firstConstant.value == secondConstant.value) ? 1L : 0L; break;
+                case NEQ: result = (firstConstant.value != secondConstant.value) ? 1L : 0L; break;
+                case LTH: result = (firstConstant.value < secondConstant.value) ? 1L : 0L; break;
+                case GTH: result = (firstConstant.value > secondConstant.value) ? 1L : 0L; break;
+                case LEQ: result = (firstConstant.value <= secondConstant.value) ? 1L : 0L; break;
+                case GEQ: result = (firstConstant.value >= secondConstant.value) ? 1L : 0L; break;
                 default: result = null;
-                /*case OR: result = (long) (result | secondConstant.value);
-                case AND: result &= (long) (result & secondConstant.value);
-                case EQU: result = (long) (result == secondConstant.value);
-                case NEQ: result = (long) (result != secondConstant.value);
-                case LTH: result = (long) (result < secondConstant.value);
-                case GTH: result = (long) (result > secondConstant.value);
-                case LEQ: result = (long) (result <= secondConstant.value);
-                case GEQ: result = (long) (result >= secondConstant.value);*/
             }
 
             if (result != null)
@@ -85,7 +89,6 @@ public class ExpressionConstantFolder implements ImcVisitor<ImcExpr, Object> {
             Long result = null;
             switch (imcUnop.oper) {
                 case NEG: result = constantExpression.value; break;
-                // case NOT: break;
             }
 
             if (result != null)

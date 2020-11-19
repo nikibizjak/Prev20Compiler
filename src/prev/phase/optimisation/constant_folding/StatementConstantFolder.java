@@ -9,7 +9,7 @@ import prev.data.imc.code.stmt.*;
 import prev.data.imc.visitor.*;
 
 /**
- * Statement canonizer.
+ * Statement constant folder.
  */
 public class StatementConstantFolder implements ImcVisitor<ImcStmt, Object> {
 
