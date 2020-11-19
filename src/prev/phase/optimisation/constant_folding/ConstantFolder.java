@@ -18,8 +18,11 @@ public class ConstantFolder extends AstFullVisitor<Object, Object> {
 	public Object visit(AstFunDecl funDecl, Object arg) {
         funDecl.expr().accept(this, arg);
         ImcExpr bodyExpr = ImcGen.exprImc.get(funDecl.expr());
-        ImcExpr newBodyExpression = bodyExpr.accept(new ExpressionConstantFolder(), null);
-        ImcGen.exprImc.put(funDecl.expr(), newBodyExpression);
+
+        ImcExpr foldedExpression = bodyExpr.accept(new ExpressionConstantFolder(), null);
+        ImcExpr symbolicFoldedExpression = foldedExpression.accept(new SymbolicExpressionConstantFolder(), null);
+        
+        ImcGen.exprImc.put(funDecl.expr(), symbolicFoldedExpression);
         return null;
 	}
 
