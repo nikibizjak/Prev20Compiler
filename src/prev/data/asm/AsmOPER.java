@@ -1,6 +1,8 @@
 package prev.data.asm;
 
 import java.util.*;
+import java.util.regex.*;
+
 import prev.data.mem.*;
 
 /**
@@ -109,12 +111,44 @@ public class AsmOPER extends AsmInstr {
 	}
 
 	@Override
-	public String toString(HashMap<MemTemp, Integer> regs) {
+	public String toString(HashMap<MemTemp, Integer> regs, HashMap<String, HashMap<Integer, String>> registerNames) {
 		String instruction = this.instr;
-		for (int i = 0; i < uses.size(); i++)
-			instruction = instruction.replace("`s" + i, "$" + regs.get(uses.get(i)));
-		for (int i = 0; i < defs.size(); i++)
-			instruction = instruction.replace("`d" + i, "$" + regs.get(defs.get(i)));
+
+		Pattern matchingPattern = Pattern.compile("`([sd])([bwdq]?)(\\d+)");
+		
+		Matcher sourceMatcher = matchingPattern.matcher(instruction);
+		while (sourceMatcher.find()) {
+			String fullMatch = sourceMatcher.group();
+
+			boolean isSource = sourceMatcher.group(1).equals("s");
+
+			String registerType = sourceMatcher.group(2);
+			if (registerType.isEmpty())
+				registerType = "q";
+			
+			String registerNumber = sourceMatcher.group(3);
+			int registerIndex = Integer.parseInt(registerNumber);
+
+			String registerName;
+			if (isSource) {
+				registerName = registerNames.get(registerType).get(regs.get(uses.get(registerIndex)));
+			} else {
+				registerName = registerNames.get(registerType).get(regs.get(defs.get(registerIndex)));
+			}
+
+			instruction = instruction.replace(fullMatch, registerName);
+
+			// System.out.println("is source: " + isSource + ", registerType: " + registerType + " registerNumber: " + registerNumber);
+		}
+
+		/*for (int i = 0; i < uses.size(); i++) {
+			String registerName = registerNames.get(regs.get(uses.get(i)));
+			instruction = instruction.replace("`s" + i, registerName);
+		}
+		for (int i = 0; i < defs.size(); i++) {
+			String registerName = registerNames.get(regs.get(defs.get(i)));
+			instruction = instruction.replace("`d" + i, registerName);
+		}*/
 		return instruction;
 	}
 

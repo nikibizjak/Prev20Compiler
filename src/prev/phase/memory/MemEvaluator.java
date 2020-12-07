@@ -172,7 +172,7 @@ public class MemEvaluator extends AstFullVisitor<Object, MemEvaluator.Context> {
 	public Object visit(AstCallExpr callExpression, Context context) {
 		// Inside the call expression, we should calculate the new
 		// context.argsSize as the maximum of size of all arguments of all
-		// function calls inside function context
+		// function calls inside function context.
 		if (callExpression.args() != null)
 			callExpression.args().accept(this, context);
 		
@@ -194,6 +194,10 @@ public class MemEvaluator extends AstFullVisitor<Object, MemEvaluator.Context> {
 		// If total size of function call parameters is bigger that the current
 		// arguments size, change it
 		functionContext.argsSize = Math.max(functionContext.argsSize, totalSize);
+
+		// Because we are compiling to the x64 assembly, we also need to make
+		// sure that there are AT least 32 bytes of "shadow space" available.
+		functionContext.argsSize = Math.max(32, functionContext.argsSize);
 
 		return null;
 	}

@@ -18,12 +18,41 @@ public class RegAll extends Phase {
 	
 	/** Mapping of temporary variables to registers. */
 	public final HashMap<MemTemp, Integer> tempToReg = new HashMap<MemTemp, Integer>();
+	public final HashMap<String, HashMap<Integer, String>> registerNames = new HashMap<String, HashMap<Integer, String>>();
 
 	LiveAn livenessAnalysis;
 
 	public RegAll() {
 		super("regall");
 		livenessAnalysis = new LiveAn();
+
+		String[] quadWordRegisterNames = { "rbx", "rcx", "rdx", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15" };
+		String[] doubleWordRegisterNames = { "ebx", "ecx", "edx", "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d" };
+		String[] wordRegisterNames = { "bx", "cx", "dx", "r8w", "r9w", "r10w", "r11w", "r12w", "r13w", "r14w", "r15w" };
+		String[] byteRegisterNames = { "bl", "cl", "dl", "r8b", "r9b", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b" };
+
+		HashMap<Integer, String> actualQuadWordRegisterNames = new HashMap<Integer, String>();
+		HashMap<Integer, String> actualDoubleWordRegisterNames = new HashMap<Integer, String>();
+		HashMap<Integer, String> actualWordRegisterNames = new HashMap<Integer, String>();
+		HashMap<Integer, String> actualByteRegisterNames = new HashMap<Integer, String>();
+
+		for (int i = 0; i < quadWordRegisterNames.length; i++) {
+			actualQuadWordRegisterNames.put(i, quadWordRegisterNames[i]);
+			actualDoubleWordRegisterNames.put(i, doubleWordRegisterNames[i]);
+			actualWordRegisterNames.put(i, wordRegisterNames[i]);
+			actualByteRegisterNames.put(i, byteRegisterNames[i]);
+		}
+
+		actualQuadWordRegisterNames.put(255, "rax");
+		actualDoubleWordRegisterNames.put(255, "eax");
+		actualWordRegisterNames.put(255, "ax");
+		actualByteRegisterNames.put(255, "al");
+
+		registerNames.put("b", actualByteRegisterNames);
+		registerNames.put("w", actualWordRegisterNames);
+		registerNames.put("d", actualDoubleWordRegisterNames);
+		registerNames.put("q", actualQuadWordRegisterNames);
+
 	}
 
 	/**
@@ -300,8 +329,8 @@ public class RegAll extends Phase {
 			logger.begElement("instructions");
 			for (AsmInstr instr : code.instrs) {
 				logger.begElement("instruction");
-				logger.addAttribute("code", instr.toString(tempToReg));
-				logger.begElement("temps");
+				logger.addAttribute("code", instr.toString(tempToReg, registerNames));
+				/*logger.begElement("temps");
 				logger.addAttribute("name", "use");
 				for (MemTemp temp : instr.uses()) {
 					logger.begElement("temp");
@@ -332,7 +361,7 @@ public class RegAll extends Phase {
 					logger.addAttribute("name", temp.toString());
 					logger.endElement();
 				}
-				logger.endElement();
+				logger.endElement();*/
 				logger.endElement();
 			}
 			logger.endElement();

@@ -76,6 +76,6 @@ public abstract class AsmInstr {
 	 * @param regs A mapping of temporaries to registers.
 	 * @return A a string representing this instruction with registers.
 	 */
-	public abstract String toString(HashMap<MemTemp, Integer> regs);
+	public abstract String toString(HashMap<MemTemp, Integer> regs, HashMap<String, HashMap<Integer, String>> registerNames);
 
 }

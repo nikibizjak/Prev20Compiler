@@ -23,7 +23,7 @@ public class AsmLABEL extends AsmOPER {
 	}
 
 	@Override
-	public String toString(HashMap<MemTemp, Integer> regs) {
+	public String toString(HashMap<MemTemp, Integer> regs, HashMap<String, HashMap<Integer, String>> registerNames) {
 		return label.name;
 	}
 

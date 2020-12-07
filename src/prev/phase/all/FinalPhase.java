@@ -21,10 +21,12 @@ import prev.data.semtype.*;
 public class FinalPhase extends Phase {
 	
 	private HashMap<MemTemp, Integer> registers;
+	private HashMap<String, HashMap<Integer, String>> registerNames;
 
-	public FinalPhase(HashMap<MemTemp, Integer> registers) {
+	public FinalPhase(HashMap<MemTemp, Integer> registers, HashMap<String, HashMap<Integer, String>> registerNames) {
 		super("all");
 		this.registers = registers;
+		this.registerNames = registerNames;
 	}
 
 	private Vector<String> codeToString(Code code) {
@@ -41,15 +43,15 @@ public class FinalPhase extends Phase {
 					// NOOP instruction. The MMIX's no operation instruction is
 					// SWYM instead of NOP as one would expect... The arguments
 					// to the SWYM instruction are irrelevant.
-					instructions.add(lastLabel.toString(registers) + "\tSWYM 0,0,0");
+					instructions.add(lastLabel.toString(registers, registerNames) + "\tSWYM 0,0,0");
 				}
 				lastLabel = (AsmLABEL) instruction;
 			} else {
 				if (lastLabel != null) {
-					instructions.add(lastLabel.toString(registers) + "\t" + instruction.toString(registers));
+					instructions.add(lastLabel.toString(registers, registerNames) + "\t" + instruction.toString(registers, registerNames));
 					lastLabel = null;
 				} else {
-					instructions.add("\t" + instruction.toString(registers));
+					instructions.add("\t" + instruction.toString(registers, registerNames));
 				}
 			}
 
@@ -386,7 +388,7 @@ public class FinalPhase extends Phase {
 			logger.begElement("instructions");
 			for (AsmInstr instr : code.instrs) {
 				logger.begElement("instruction");
-				logger.addAttribute("code", instr.toString(registers));
+				logger.addAttribute("code", instr.toString(registers, registerNames));
 				logger.endElement();
 			}
 			logger.endElement();

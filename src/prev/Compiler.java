@@ -256,7 +256,7 @@ public class Compiler {
 					break;
 				
 				// The last phase - FINAL PHASE
-				try (FinalPhase finalPhase = new FinalPhase(registerAllocation.tempToReg)) {
+				try (FinalPhase finalPhase = new FinalPhase(registerAllocation.tempToReg, registerAllocation.registerNames)) {
 					finalPhase.run();
 					finalPhase.log();
 				}

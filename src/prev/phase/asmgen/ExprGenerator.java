@@ -13,29 +13,35 @@ import prev.data.asm.*;
 public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 
 	public MemTemp visit(ImcBINOP binOp, Vector<AsmInstr> instructions) {
-		MemTemp register = new MemTemp();
+
+		MemTemp resultRegister = binOp.fstExpr.accept(this, instructions);
 
 		Vector<MemTemp> uses = new Vector<MemTemp>();
-		uses.add(binOp.fstExpr.accept(this, instructions));
+		uses.add(resultRegister);
 		uses.add(binOp.sndExpr.accept(this, instructions));
 
 		Vector<MemTemp> defines = new Vector<MemTemp>();
-		defines.add(register);
+		defines.add(resultRegister);
 
 		switch (binOp.oper) {
 			// The easier operations - the ones that are already implemented in
 			// MMIX assebly language
-			case OR:	instructions.add(new AsmOPER("OR `d0,`s0,`s1", uses, defines, null));	break;
-			case AND:	instructions.add(new AsmOPER("AND `d0,`s0,`s1", uses, defines, null));	break;
-			case ADD:	instructions.add(new AsmOPER("ADD `d0,`s0,`s1", uses, defines, null));	break;
-			case SUB:	instructions.add(new AsmOPER("SUB `d0,`s0,`s1", uses, defines, null));	break;
-			case MUL:	instructions.add(new AsmOPER("MUL `d0,`s0,`s1", uses, defines, null));	break;
-			case DIV:	instructions.add(new AsmOPER("DIV `d0,`s0,`s1", uses, defines, null));	break;
+			case OR:	instructions.add(new AsmOPER("or `d0, `s1", uses, defines, null));	break;
+			case AND:	instructions.add(new AsmOPER("and `d0, `s1", uses, defines, null));	break;
+			case ADD:	instructions.add(new AsmOPER("add `d0, `s1", uses, defines, null));	break;
+			case SUB:	instructions.add(new AsmOPER("sub `d0, `s1", uses, defines, null));	break;
+			case MUL:	instructions.add(new AsmOPER("imul `d0, `s1", uses, defines, null));	break;
 
-			// There is no modulo operator in MMIX, so we need to do it
-			// differently. The divison remainder is placed in special
-			// remainder register $rR. We need to copy this value to our
-			// register.
+			// The DIV and MOD operations can only be executed in special registers
+			// we can divide 64 bit number in registers EDX:EAX with number stored in r8 like so:
+			// mov	edx, upper 32 bits of dividend
+			// mov	eax, lower 32 bits of dividend
+			// mov	r8, divisor
+			// idiv	r8
+			// the result is saved in:
+			//   * RAX <- Quotient
+			//   * RDX <- Remainder
+			case DIV:	instructions.add(new AsmOPER("idiv `d0, `s1", uses, defines, null));	break;
 			case MOD:
 				instructions.add(new AsmOPER("DIV `d0,`s0,`s1", uses, defines, null));
 				instructions.add(new AsmOPER("GET `d0,rR", null, defines, null));
@@ -51,33 +57,39 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 			// The second operation will be executed on the same register,
 			// because we will want to return this register.
 			case EQU:
-				instructions.add(new AsmOPER("CMP `d0,`s0,`s1", uses, defines, null));
-				instructions.add(new AsmOPER("ZSZ `d0,`s0,1", defines, defines, null));
+				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
+				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
+				instructions.add(new AsmOPER("sete `db0", defines, defines, null));
 				break;
 			case NEQ:
-				instructions.add(new AsmOPER("CMP `d0,`s0,`s1", uses, defines, null));
-				instructions.add(new AsmOPER("AND `d0,`s0,1", defines, defines, null));
+				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
+				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
+				instructions.add(new AsmOPER("setne `db0", defines, defines, null));
 				break;
 			case LTH:
-				instructions.add(new AsmOPER("CMP `d0,`s0,`s1", uses, defines, null));
-				instructions.add(new AsmOPER("ZSN `d0,`s0,1", defines, defines, null));
+				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
+				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
+				instructions.add(new AsmOPER("setl `db0", defines, defines, null));
 				break;
 			case GTH:
-				instructions.add(new AsmOPER("CMP `d0,`s0,`s1", uses, defines, null));
-				instructions.add(new AsmOPER("ZSP `d0,`s0,1", defines, defines, null));
+				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
+				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
+				instructions.add(new AsmOPER("setg `db0", defines, defines, null));
 				break;
 			case LEQ:
-				instructions.add(new AsmOPER("CMP `d0,`s0,`s1", uses, defines, null));
-				instructions.add(new AsmOPER("ZSNP `d0,`s0,1", defines, defines, null));
+				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
+				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
+				instructions.add(new AsmOPER("setle `db0", defines, defines, null));
 				break;
 			case GEQ:
-				instructions.add(new AsmOPER("CMP `d0,`s0,`s1", uses, defines, null));
-				instructions.add(new AsmOPER("ZSNN `d0,`s0,1", defines, defines, null));
+				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
+				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
+				instructions.add(new AsmOPER("setge `db0", defines, defines, null));
 				break;
 
 			default:	break;
 		}
-		return register;
+		return resultRegister;
 	}
 
 	public MemTemp visit(ImcCALL call, Vector<AsmInstr> instructions) {
@@ -134,7 +146,7 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 		uses.add(addressTemporary);
 		defs.add(memoryTemporary);
 
-		instructions.add(new AsmMOVE("LDO `d0,`s0,0", uses, defs));
+		instructions.add(new AsmMOVE("mov qword `d0, [`s0]", uses, defs));
 
 		return memoryTemporary;
 	}
@@ -147,7 +159,7 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 
 		// Use the instruction LDA $X, $Y to load address $Y (can be label) to
 		// register $X.
-		instructions.add(new AsmOPER("LDA `d0," + name.label.name, null, defines, null));
+		instructions.add(new AsmOPER("lea `d0, [" + name.label.name + "]", null, defines, null));
 		
 		return register;
 	}
@@ -165,11 +177,7 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 	}
 
 	public MemTemp visit(ImcUNOP unOp, Vector<AsmInstr> instructions) {
-		MemTemp register = new MemTemp();
-
-		Vector<MemTemp> uses = new Vector<MemTemp>();
-		uses.add(unOp.subExpr.accept(this, instructions));
-
+		MemTemp register = unOp.subExpr.accept(this, instructions);
 		Vector<MemTemp> defines = new Vector<MemTemp>();
 		defines.add(register);
 
@@ -183,10 +191,10 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 		// and (0 XOR 1) = 1.
 		switch (unOp.oper) {
 			case NOT:
-				instructions.add(new AsmOPER("XOR `d0,`s0,1", uses, defines, null));
+				instructions.add(new AsmOPER("xor `d0, 1", defines, defines, null));
 				break;
 			case NEG:
-				instructions.add(new AsmOPER("NEG `d0,`s0", uses, defines, null));
+				instructions.add(new AsmOPER("neg `d0", defines, defines, null));
 				break;
 			default: break;
 		}
@@ -203,34 +211,17 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 		// phases), we will always need all 4 instructions, because the leftmost
 		// bit will be 1 if the number is negative. We can solve this by first
 		// loading an absolute value to registers and then negate the number.
-		Vector<MemTemp> uses = new Vector<MemTemp>();
-		uses.add(temporary);
-
 		Vector<MemTemp> defines = new Vector<MemTemp>();
 		defines.add(temporary);
 
 		long absoluteValue = Math.abs(value);
 		
-		// Compute all 4 wydes using bit shifting and bitwise and operations
-		int low = (int) (absoluteValue & 0xFFFF);
-		int mediumLow = (int) ((absoluteValue >> 16) & 0xFFFF);
-		int mediumHigh = (int) ((absoluteValue >> 32) & 0xFFFF);
-		int high = (int) ((absoluteValue >> 48) & 0xFFFF);
-
-		// Set the lowest wyde, then use increment to set medium low, medium
-		// high and high wydes of our register
-		instructions.add(new AsmOPER("SETL `d0," + low, null, defines, null));
-		if (mediumLow != 0)
-			instructions.add(new AsmOPER("INCML `d0," + mediumLow, uses, defines, null));
-		if (mediumHigh != 0)
-			instructions.add(new AsmOPER("INCMH `d0," + mediumHigh, uses, defines, null));
-		if (high != 0)
-			instructions.add(new AsmOPER("INCH `d0," + high, uses, defines, null));
+		instructions.add(new AsmOPER("mov `d0, qword " + absoluteValue, null, defines, null));
 		
 		// If the constant that we are trying to load is negative, negate the
 		// current register
 		if (value < 0)
-			instructions.add(new AsmOPER("NEG `d0,`s0", uses, defines, null));
+			instructions.add(new AsmOPER("neg `d0", defines, defines, null));
 
 		return instructions;
 	}

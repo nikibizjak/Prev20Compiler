@@ -22,6 +22,15 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 		// is saved to. The result will either be 0 or 1.
 		MemTemp conditionTemporary = cjump.cond.accept(new ExprGenerator(), instructions);
 
+		// TODO: Optimize this
+		// For comparison like 3 == 4, we need to emit 3 instructions:
+		// cmp	rax, rbx		; compare
+		// mov	rax, qword 0	; set resulting temporary to zero
+		// sete	al				; set lowest byte of result temporary to correct value
+		// But the conditional statements, could be implemented like so:
+		// cmp	rax, rbx
+		// jge  label			; jump if greater, jump if not equal, ...		
+
 		// The negative label is directly after the condition, so we need to
 		// check if conditionTemporary contains non-zero value (=1). If it does,
 		// jump to positive label, otherwise continue.
@@ -33,7 +42,8 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 		uses.add(conditionTemporary);
 
 		// Add a jump if the conditionTemporary contains nonzero value
-		instructions.add(new AsmOPER("BNZ `s0," + cjump.posLabel.name, uses, null, jumps));
+		instructions.add(new AsmOPER("cmp `s0, 0", uses, null, null));
+		instructions.add(new AsmOPER("jne " + cjump.posLabel.name, null, null, jumps));
 
 		return instructions;
 	}
@@ -59,7 +69,7 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 				uses.add(((LinCodeChunk) arg).frame.RV);
 		}
 
-		instructions.add(new AsmOPER("JMP " + jump.label.name, uses, null, jumps));
+		instructions.add(new AsmOPER("jmp " + jump.label.name, uses, null, jumps));
 		
 		return instructions;
 	}
@@ -87,7 +97,7 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 			// If destination and source of the move command are not MEM
 			// instruction, then we are simply moving data from one register to
 			// another. We can use SET $X, $Y or OR $X, $Y, 0
-			instructions.add(new AsmMOVE("SET `d0,`s0", uses, defs));
+			instructions.add(new AsmMOVE("mov `d0, `s0", uses, defs));
 		} else if (move.src instanceof ImcMEM && move.dst instanceof ImcMEM) {
 			// The instruction is MOVE(MEM(...), MEM(...)), so we are
 			// loading and storing data at the same time.
@@ -102,11 +112,11 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 			
 			// We can use the LDO $X, $Y, $Z, which loads data from memory
 			// location $X + $Z to register $X.
-			instructions.add(new AsmOPER("LDO `d0,`s0,0", uses, defs, null));
+			instructions.add(new AsmOPER("mov qword `d0, [`s0]", uses, defs, null));
 
 			uses.add(destinationTemporary);
 
-			instructions.add(new AsmOPER("STO `s0,`s1,0", uses, null, null));
+			instructions.add(new AsmOPER("mov qword [`s1], `s0", uses, null, null));
 
 		} else if (move.src instanceof ImcMEM) {
 			// The instruction is MOVE(..., MEM(...)), which is just loading
@@ -118,7 +128,7 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 			// location $X + $Z to register $X.
 			defs.add(destinationTemporary);
 			uses.add(sourceTemporary);
-			instructions.add(new AsmOPER("LDO `d0,`s0,0", uses, defs, null));
+			instructions.add(new AsmOPER("mov qword `d0, [`s0]", uses, defs, null));
 		} else {
 			// The instruction is MOVE(MEM(...), ...), so we are storing data to
 			// the memory. To store the entire register data, we can use the
@@ -129,8 +139,8 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 
 			uses.add(sourceTemporary);
 			uses.add(destinationTemporary);
-			
-			instructions.add(new AsmOPER("STO `s0,`s1,0", uses, null, null));
+
+			instructions.add(new AsmOPER("mov qword [`s1], `s0", uses, null, null));
 		}
 
 		return instructions;
