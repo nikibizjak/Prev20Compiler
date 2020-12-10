@@ -24,3 +24,18 @@ hs_err_pid*
 
 # The prg directory with test programs
 prg/
+
+# Antlr generated files
+src/prev/phase/lexan/PrevLexer.interp
+src/prev/phase/lexan/PrevLexer.java
+src/prev/phase/lexan/PrevLexer.tokens
+src/prev/phase/synan/PrevParser.interp
+src/prev/phase/synan/PrevParser.java
+src/prev/phase/synan/PrevParser.tokens
+
+# Benchmarking scripts
+benchmark.py
+build.bat
+build_compiler.bat
+compile.bat
+configuration.json

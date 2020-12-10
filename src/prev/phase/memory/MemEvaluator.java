@@ -29,7 +29,8 @@ public class MemEvaluator extends AstFullVisitor<Object, MemEvaluator.Context> {
 		public int depth = 0;
 		public long locsSize = 0;
 		public long argsSize = 0;
-		public long parsSize = new SemPointer(new SemVoid()).size();
+		// public long parsSize = new SemPointer(new SemVoid()).size();
+		public long parsSize = 48 + 8;
 	}
 
 	/**
@@ -194,10 +195,6 @@ public class MemEvaluator extends AstFullVisitor<Object, MemEvaluator.Context> {
 		// If total size of function call parameters is bigger that the current
 		// arguments size, change it
 		functionContext.argsSize = Math.max(functionContext.argsSize, totalSize);
-
-		// Because we are compiling to the x64 assembly, we also need to make
-		// sure that there are AT least 32 bytes of "shadow space" available.
-		functionContext.argsSize = Math.max(32, functionContext.argsSize);
 
 		return null;
 	}

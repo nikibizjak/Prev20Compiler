@@ -137,8 +137,6 @@ public class AsmOPER extends AsmInstr {
 			}
 
 			instruction = instruction.replace(fullMatch, registerName);
-
-			// System.out.println("is source: " + isSource + ", registerType: " + registerType + " registerNumber: " + registerNumber);
 		}
 
 		/*for (int i = 0; i < uses.size(); i++) {

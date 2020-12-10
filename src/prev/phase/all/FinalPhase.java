@@ -34,25 +34,12 @@ public class FinalPhase extends Phase {
 
 		Vector<String> instructions = new Vector<String>();
 
-		AsmLABEL lastLabel = null;
 		for (AsmInstr instruction : code.instrs) {
 
 			if (instruction instanceof AsmLABEL) {
-				if (lastLabel != null) {
-					// There are two labels one after another, we must add a
-					// NOOP instruction. The MMIX's no operation instruction is
-					// SWYM instead of NOP as one would expect... The arguments
-					// to the SWYM instruction are irrelevant.
-					instructions.add(lastLabel.toString(registers, registerNames) + "\tSWYM 0,0,0");
-				}
-				lastLabel = (AsmLABEL) instruction;
+				instructions.add(instruction.toString(registers, registerNames) + ":");
 			} else {
-				if (lastLabel != null) {
-					instructions.add(lastLabel.toString(registers, registerNames) + "\t" + instruction.toString(registers, registerNames));
-					lastLabel = null;
-				} else {
-					instructions.add("\t" + instruction.toString(registers, registerNames));
-				}
+				instructions.add("\t" + instruction.toString(registers, registerNames));
 			}
 
 		}
@@ -65,35 +52,52 @@ public class FinalPhase extends Phase {
 		// it should only be called once
 		Vector<AsmInstr> instructions = new Vector<AsmInstr>();
 
-		// Construct a memory temporary, that will always be mapped to register
-		// $0 and will be used to store loaded constants. 
-		MemTemp temporary = new MemTemp();
-		registers.put(temporary, 0);
-
+		// Empty line before function label
+		instructions.add(new AsmOPER("", null, null, null));
+		
 		// Function entry label
 		instructions.add(new AsmLABEL(code.frame.label));
 
+		// Construct a memory temporary, that will always be mapped to register
+		// rax and will be used to store loaded constants. 
+		MemTemp temporary = new MemTemp();
+		registers.put(temporary, 0);
+
+		instructions.add(new AsmOPER("; prologue", null, null, null));
+
 		// Save old frame pointer
-		long oldFramePointerOffset = code.frame.locsSize + 8;
-		instructions.addAll(ExprGenerator.loadConstant(temporary, oldFramePointerOffset));
-		instructions.add(new AsmOPER("SUB $0,SP,$0", null, null, null));
-		instructions.add(new AsmOPER("STO FP,$0,0", null, null, null));
+		instructions.add(new AsmOPER("push rbp", null, null, null));
 
-		// Save return address
-		instructions.add(new AsmOPER("SUB $0,$0,8", null, null, null));
-		instructions.add(new AsmOPER("GET $1,rJ", null, null, null));
-		instructions.add(new AsmOPER("STO $1,$0,0", null, null, null));
+		// Move frame pointer to current stack pointer
+		instructions.add(new AsmOPER("mov rbp, rsp", null, null, null));
+		
+		// Leave space for local variables and saving register values
+		long additionalSpace = code.frame.size + code.tempSize + (11 * 8);
+		if (additionalSpace != 0L) {
+			instructions.addAll(ExprGenerator.loadConstant(temporary, additionalSpace));
+			instructions.add(new AsmOPER("sub rsp, rbx", null, null, null));
+		}
 
-		// Update frame pointer
-		instructions.add(new AsmOPER("SET FP,SP", null, null, null));
+		// Push all registers to stack
+		long offset = code.frame.argsSize + 32 - 8;
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 0*8) + "], rax", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 1*8) + "], rbx", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 2*8) + "], rcx", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 3*8) + "], rdx", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 4*8) + "], r8", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 5*8) + "], r9", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 6*8) + "], r10", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 7*8) + "], r11", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 8*8) + "], r12", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 9*8) + "], r13", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 10*8) + "], r14", null, null, null));
+		instructions.add(new AsmOPER("mov [rsp + " + (offset + 11*8) + "], r15", null, null, null));
 
-		// Update stack pointer
-		long totalFrameSize = code.frame.size + code.tempSize;
-		instructions.addAll(ExprGenerator.loadConstant(temporary, totalFrameSize));
-		instructions.add(new AsmOPER("SUB SP,SP,$0", null, null, null));
+		instructions.add(new AsmOPER("; end of prologue", null, null, null));
 
 		// The last instruction is the JUMP to function body label
-		instructions.add(new AsmOPER("JMP " + code.entryLabel.name, null, null, null));
+		instructions.add(new AsmOPER("jmp " + code.entryLabel.name, null, null, null));
+
 		code.instrs.addAll(0, instructions);
 	}
 
@@ -102,38 +106,41 @@ public class FinalPhase extends Phase {
 		// it should only be called once
 		Vector<AsmInstr> instructions = code.instrs;
 
-		// Construct a memory temporary, that will always be mapped to register
-		// $0 and will be used to store loaded constants. 
-		MemTemp temporary = new MemTemp();
-		registers.put(temporary, 0);
-
 		// Add function body exit label
 		instructions.add(new AsmLABEL(code.exitLabel));
 
-		// Store return value
+		instructions.add(new AsmOPER("; epilogue", null, null, null));
+
+		// Store return value to first argument memory location (SL)
 		Vector<MemTemp> uses = new Vector<MemTemp>();
 		uses.add(code.frame.RV);
-		instructions.add(new AsmOPER("STO `s0,FP,0", uses, null, null));
+		instructions.add(new AsmOPER("mov [rbp + 48], `s0", uses, null, null));
 
-		// Set the stack pointer to current frame pointer
-		instructions.add(new AsmOPER("SET SP,FP", null, null, null));
+		long offset = code.frame.argsSize + 32 - 8;
+		instructions.add(new AsmOPER("mov rax, [rsp + " + (offset + 0*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov rbx, [rsp + " + (offset + 1*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov rcx, [rsp + " + (offset + 2*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov rdx, [rsp + " + (offset + 3*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov r8, [rsp + " + (offset + 4*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov r9, [rsp + " + (offset + 5*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov r10, [rsp + " + (offset + 6*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov r11, [rsp + " + (offset + 7*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov r12, [rsp + " + (offset + 8*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov r13, [rsp + " + (offset + 9*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov r14, [rsp + " + (offset + 10*8) + "]", null, null, null));
+		instructions.add(new AsmOPER("mov r15, [rsp + " + (offset + 11*8) + "]", null, null, null));
 
-		// Load back the old frame pointer from function frame and set current
-		// frame pointer to the loaded value.
-		long oldFramePointerOffset = code.frame.locsSize + 8;
-		instructions.addAll(ExprGenerator.loadConstant(temporary, oldFramePointerOffset));
-		instructions.add(new AsmOPER("SUB $0,SP,$0", null, null, null));
-		instructions.add(new AsmOPER("LDO FP,$0,0", null, null, null));
-		
-		// Set the special register rJ (the return address register) to the
-		// actual return address, which is saved in our function frame.
-		instructions.add(new AsmOPER("SUB $0,$0,8", null, null, null));
-		instructions.add(new AsmOPER("LDO $0,$0,0", null, null, null));
-		instructions.add(new AsmOPER("PUT rJ,$0", null, null, null));
-		
-		// Add the POP instruction that will tell the MMIX that we want to
-		// return from function
-		instructions.add(new AsmOPER("POP " + Compiler.numberOfRegisters + ",0", null, null, null));
+		instructions.add(new AsmOPER("mov rsp, rbp", null, null, null));
+
+		// Store return value to first argument memory location (SL)
+		/*Vector<MemTemp> uses = new Vector<MemTemp>();
+		uses.add(code.frame.RV);
+		instructions.add(new AsmOPER("mov [rsp + 48], `s0", uses, null, null));*/
+
+		instructions.add(new AsmOPER("pop rbp", null, null, null));
+
+		// instructions.add(new AsmOPER("leave", null, null, null));
+		instructions.add(new AsmOPER("ret", null, null, null));
 	}
 
 	private Vector<String> generateBootstrapRoutine() {
@@ -147,21 +154,11 @@ public class FinalPhase extends Phase {
 		// The heap pointer will be initialized after all the static variables,
 		// so that the heap will start after the static data and will not
 		// override anything.
-		instructions.add("SP\tGREG\t#4000000000000000");
-		instructions.add("FP\tGREG\t0\n");
+		instructions.add("%include \"io64.inc\"");
+		instructions.add("bits 64");
+		instructions.add("default rel\n");
 
-		// After it, add the static data segment
-		instructions.add("\tLOC\tData_Segment");
-
-		// Add a base address, so variable addressing works
-		instructions.add("\tGREG\t@");
-
-		// Input buffer for reading text from input
-		instructions.add("InputSize\tIS\t64");
-		instructions.add("InputBuffer\tOCTA\t0");
-		instructions.add("\tLOC\tInputBuffer+InputSize");
-		instructions.add("BufferPosition\tOCTA\t@");
-		instructions.add("InputArgs\tOCTA\tInputBuffer,InputSize\n");
+		instructions.add("section .data");
 
 		for (LinDataChunk dataChunk : ImcLin.dataChunks()) {
 			// If the initial value is not null, that means that this data chunk
@@ -169,130 +166,38 @@ public class FinalPhase extends Phase {
 			// the data chunk is a normal variable, which is dataChunk.size
 			// bytes long. 
 			if (dataChunk.init != null) {
-				instructions.add(dataChunk.label.name + "\tOCTA\t" + dataChunk.init + ",0");
+				instructions.add(dataChunk.label.name + ":\tdb " + dataChunk.init + ", 0");
 			} else {
-				String instruction = dataChunk.label.name + "\tOCTA\t";
+				// _i:	dq	12
+				String instruction = dataChunk.label.name + ":\tdq ";
 				for (int i = 0; i < dataChunk.size; i += 8) {
 					if (i > 0)
-						instruction += ",";
+						instruction += ", ";
 					instruction += "0";
 				}
 				instructions.add(instruction);
 			}
 		}
 
-		// After all the data has been added, we add another global register for
-		// heap. It is initialized to current location (@).
-		instructions.add("HP\tGREG\t@\n");
-
-		// Program instructions should start after the location #100
-		instructions.add("\tLOC\t#100\n");
-
-		// Add a Main label that MMIX runs first
-		instructions.add("Main\tPUSHJ\t$" + Compiler.numberOfRegisters + ",_main");
-
-		// After the _main function is called, load the result to register $255
-		// which is used for return values. After the Halt subroutine will be
-		// called, the program will halt with return value = value of register $255.
-		instructions.add("\tLDO\t$255,$254,0");
-
-		// Add exit instruction to our program
-		instructions.add("\tTRAP\t0,Halt,0\n");
+		instructions.add("\nsection .text");
+		instructions.add("global CMAIN");
+		instructions.add("CMAIN:");
+		instructions.add("\tmov rbp, rsp");
+		instructions.add("\tcall _main");
+		// Get the return value of the main function
+		instructions.add("\tmov rax, [rsp + 32]");
+		instructions.add("\tret");
 
 		return instructions;
 	}
 
-	private Vector<String> generatePutCharFunction() {
-
-		MemFrame putCharFrame = new MemFrame(new MemLabel("putChar"), 0, 0, 0);
-		MemLabel entryLabel = new MemLabel();
-		MemLabel exitLabel = new MemLabel();
-		// To output a character, we first need to allocate 2 bytes of memory
-		// for the character and string terminator 0. Then we can use system
-		// call to TRAP 0,Fputs,StdOut. Instead of allocating memory, we can
-		// override the next octa in our stack frame and then restore it.
-		Vector<AsmInstr> putCharInstructions = new Vector<AsmInstr>();
-		// Load the next 64 bits from memory to register $0, this will be used
-		// to restore data after we print it
-		putCharInstructions.add(new AsmLABEL(entryLabel));
-		putCharInstructions.add(new AsmOPER("LDO $0,FP,16", null, null, null));
-
-		// Set the next octa after character to 0
-		putCharInstructions.add(new AsmOPER("SETL $1,0", null, null, null));
-		putCharInstructions.add(new AsmOPER("STO $1,FP,16", null, null, null));
-
-		// Get the address of the character that we want to print (the character
-		// has 1B, so we need to move 15B from frame pointer)
-		putCharInstructions.add(new AsmOPER("ADD $255,FP,15", null, null, null));
-		
-		// Actually print data
-		putCharInstructions.add(new AsmOPER("TRAP 0,Fputs,StdOut", null, null, null));
-
-		// Restore the memory
-		putCharInstructions.add(new AsmOPER("STO $0,FP,16", null, null, null));
-
-		Code putCharCode = new Code(putCharFrame, entryLabel, exitLabel, putCharInstructions);
-		registers.put(putCharCode.frame.RV, 255);
-
-		generatePrologue(putCharCode);
-		generateEpilogue(putCharCode);
-
-		return codeToString(putCharCode);
-	}
-
-	private Vector<String> generateGetCharFunction() {
-
-		MemFrame getCharFrame = new MemFrame(new MemLabel("getChar"), 0, 0, 0);
-		MemLabel entryLabel = new MemLabel();
-		MemLabel exitLabel = new MemLabel();
-		// To output a character, we first need to allocate 2 bytes of memory
-		// for the character and string terminator 0. Then we can use system
-		// call to TRAP 0,Fputs,StdOut. Instead of allocating memory, we can
-		// override the next octa in our stack frame and then restore it.
-		Vector<AsmInstr> getCharInstructions = new Vector<AsmInstr>();
-
-		getCharInstructions.add(new AsmLABEL(entryLabel));
-
-		// If the value of BufferPosition is smaller than its address, increase
-		// it by one byte.
-		getCharInstructions.add(new AsmOPER("LDO\t$0,BufferPosition", null, null, null));
-		getCharInstructions.add(new AsmOPER("LDA\t$1,BufferPosition", null, null, null));
-
-		getCharInstructions.add(new AsmOPER("CMP\t$2,$0,$1", null, null, null));
-		getCharInstructions.add(new AsmOPER("ZSN $2,$2,1", null, null, null));
-
-		MemLabel label = new MemLabel();
-		getCharInstructions.add(new AsmOPER("BP $2," + label.name, null, null, null));
-
-		getCharInstructions.add(new AsmOPER("LDA\t$255,InputArgs", null, null, null));
-		getCharInstructions.add(new AsmOPER("\tTRAP\t0,Fgets,StdIn", null, null, null));
-		getCharInstructions.add(new AsmOPER("LDA\t$0,InputBuffer", null, null, null));
-		getCharInstructions.add(new AsmOPER("LDA\t$1,BufferPosition", null, null, null));
-		getCharInstructions.add(new AsmOPER("STO\t$0,$1,0", null, null, null));
-
-		getCharInstructions.add(new AsmLABEL(label));
-		getCharInstructions.add(new AsmOPER("LDO\t$0,BufferPosition", null, null, null));
-		getCharInstructions.add(new AsmOPER("LDB\t$255,$0", null, null, null));
-		getCharInstructions.add(new AsmOPER("SETL\t$1,0", null, null, null));
-		getCharInstructions.add(new AsmOPER("STB\t$1,$0", null, null, null));
-
-		getCharInstructions.add(new AsmOPER("ADD\t$0,$0,1", null, null, null));
-		getCharInstructions.add(new AsmOPER("LDA\t$1,BufferPosition", null, null, null));
-		getCharInstructions.add(new AsmOPER("STO\t$0,$1,0", null, null, null));
-
-		Code getCharCode = new Code(getCharFrame, entryLabel, exitLabel, getCharInstructions);
-		registers.put(getCharCode.frame.RV, 255);
-
-		generatePrologue(getCharCode);
-		generateEpilogue(getCharCode);
-
-		return codeToString(getCharCode);
-	}
+	// mov rcx, [rbp + 56]
+	// call printf
 
 	private Vector<String> generateStandardLibrary() {
 		Vector<String> instructions = new Vector<String>();
 		
-		// Function _new. We don't really need to create a new stack frame. So
+		/*// Function _new. We don't really need to create a new stack frame. So
 		// simply get the first argument (number of bytes that we want to
 		// reserve) and move the heap pointer down. Then set the old heap
 		// pointer as the return value.
@@ -315,7 +220,7 @@ public class FinalPhase extends Phase {
 
 		// Function _getchar
 		Vector<String> getCharInstructions = generateGetCharFunction();
-		instructions.addAll(getCharInstructions);
+		instructions.addAll(getCharInstructions);*/
 
 		return instructions;
 	}
@@ -362,8 +267,8 @@ public class FinalPhase extends Phase {
 				output.write(instruction + "\n");
 
 			// Generate STANDARD LIBRARY and write it to file
-			for (String instruction : generateStandardLibrary())
-				output.write(instruction + "\n");
+			// for (String instruction : generateStandardLibrary())
+			//	output.write(instruction + "\n");
 
 			// Generate PROLOGUE and EPILOGUE for each function and write it to
 			// file

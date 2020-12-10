@@ -48,6 +48,16 @@ public class RegAll extends Phase {
 		actualWordRegisterNames.put(255, "ax");
 		actualByteRegisterNames.put(255, "al");
 
+		actualQuadWordRegisterNames.put(254, "rsp");
+		actualDoubleWordRegisterNames.put(254, "rsp");
+		actualWordRegisterNames.put(254, "rsp");
+		actualByteRegisterNames.put(254, "rsp");
+
+		actualQuadWordRegisterNames.put(253, "rbp");
+		actualDoubleWordRegisterNames.put(253, "rbp");
+		actualWordRegisterNames.put(253, "rbp");
+		actualByteRegisterNames.put(253, "rbp");
+
 		registerNames.put("b", actualByteRegisterNames);
 		registerNames.put("w", actualWordRegisterNames);
 		registerNames.put("d", actualDoubleWordRegisterNames);

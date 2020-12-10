@@ -42,7 +42,10 @@ public class MemFrame implements Loggable {
 		this.depth = depth;
 		this.locsSize = locsSize;
 		this.argsSize = argsSize;
-		this.size = this.locsSize + 2 * (new SemPointer(new SemVoid())).size() + this.argsSize;
+		// this.size = this.locsSize + 2 * (new SemPointer(new SemVoid())).size() + this.argsSize;
+		// The +32 is additional shadow space at the top of the stack (after the
+		// parameters for calling the functions)
+		this.size = this.locsSize + this.argsSize + 32;
 		this.FP = new MemTemp();
 		this.RV = new MemTemp();
 	}

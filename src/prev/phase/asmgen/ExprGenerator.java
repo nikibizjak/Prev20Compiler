@@ -15,10 +15,11 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 	public MemTemp visit(ImcBINOP binOp, Vector<AsmInstr> instructions) {
 
 		MemTemp resultRegister = binOp.fstExpr.accept(this, instructions);
+		MemTemp operandRegister = binOp.sndExpr.accept(this, instructions);
 
 		Vector<MemTemp> uses = new Vector<MemTemp>();
 		uses.add(resultRegister);
-		uses.add(binOp.sndExpr.accept(this, instructions));
+		uses.add(operandRegister);
 
 		Vector<MemTemp> defines = new Vector<MemTemp>();
 		defines.add(resultRegister);
@@ -41,10 +42,33 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 			// the result is saved in:
 			//   * RAX <- Quotient
 			//   * RDX <- Remainder
-			case DIV:	instructions.add(new AsmOPER("idiv `d0, `s1", uses, defines, null));	break;
+			case DIV:
+				instructions.add(new AsmOPER("push rax", null, null, null));
+				instructions.add(new AsmOPER("push rdx", null, null, null));
+				Vector<MemTemp> usesDivision = new Vector<MemTemp>();
+				usesDivision.add(resultRegister);
+				instructions.add(new AsmOPER("mov rax, `s0", usesDivision, null, null));
+				instructions.add(new AsmOPER("cqo", null, null, null));
+				Vector<MemTemp> usesDivision2 = new Vector<MemTemp>();
+				usesDivision2.add(operandRegister);
+				instructions.add(new AsmOPER("idiv `s0", usesDivision2, defines, null));
+				instructions.add(new AsmOPER("mov `d0, rax", null, usesDivision, null));
+				instructions.add(new AsmOPER("pop rdx", null, null, null));
+				instructions.add(new AsmOPER("pop rax", null, null, null));
+				break;
 			case MOD:
-				instructions.add(new AsmOPER("DIV `d0,`s0,`s1", uses, defines, null));
-				instructions.add(new AsmOPER("GET `d0,rR", null, defines, null));
+				instructions.add(new AsmOPER("push rax", null, null, null));
+				instructions.add(new AsmOPER("push rdx", null, null, null));
+				Vector<MemTemp> usesDivision3 = new Vector<MemTemp>();
+				usesDivision3.add(resultRegister);
+				instructions.add(new AsmOPER("mov rax, `s0", usesDivision3, null, null));
+				instructions.add(new AsmOPER("cqo", null, null, null));
+				Vector<MemTemp> usesDivision4 = new Vector<MemTemp>();
+				usesDivision4.add(operandRegister);
+				instructions.add(new AsmOPER("idiv `s0", usesDivision4, defines, null));
+				instructions.add(new AsmOPER("mov `d0, rdx", null, usesDivision3, null));
+				instructions.add(new AsmOPER("pop rdx", null, null, null));
+				instructions.add(new AsmOPER("pop rax", null, null, null));
 				break;
 
 			// The comparison operators will need two operations. The first will
@@ -93,9 +117,20 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 	}
 
 	public MemTemp visit(ImcCALL call, Vector<AsmInstr> instructions) {
-		// PROLOGUE - prepare function call, save static link and all arguments
-		// to the call stack. Save SL (static link) and arguments to the bottom
-		// of the call stack. The value in register $254 is the stack pointer.
+		// By the Microsoft x64 calling convention, the caller function is
+		// responsible for two things:
+		//   1. The calling function allocates 32B of "shadow space" on the
+		//      stack before calling the function
+		//   2. Saving the function arguments to the stack (or passing them in
+		//      registers to be more performant).
+		//   3. Calling the function. When we use call statement, the return
+		//      address is pushed to the stack
+		//   4. Getting the result from stack
+		//   5. Popping the stack after call
+		instructions.add(new AsmOPER("; Calling function", null, null, null));
+
+		// Add function call arguments to the stack. The first function argument
+		// is ALWAYS static link.
 		for (int i = 0; i < call.args().size(); i++) {
 			ImcExpr argument = call.args().get(i);
 			Long offset = call.offs().get(i);
@@ -104,23 +139,21 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 			Vector<MemTemp> uses = new Vector<MemTemp>();
 			uses.add(argumentTemporary);
 
-			instructions.add(new AsmOPER("STO `s0,$254," + offset, uses, null, null));
+			instructions.add(new AsmOPER("mov [rsp + " + (32 + offset) + "], `s0", uses, null, null));
 		}
 
-		// BODY - call the function. Use the PUSHJ instruction to push registers
-		// and jump to label. The first parameter (currently $0) is the size of
-		// our call stack.
-		instructions.add(new AsmOPER("PUSHJ " + Compiler.numberOfRegisters + "," + call.label.name, null, null, null));
+		// Actually call the function (the return address is pushed to the stack
+		// right before the call)
+		instructions.add(new AsmOPER("call " + call.label.name, null, null, null));
 
-		// EPILOGUE - get the function return value. The values of registers
-		// will be restored when the POP instruction is called. The stack
-		// pointer points to our return value. So get data from memory where
-		// register $254 points.
+		// After the called function finishes, get its return value from the
+		// stack. The return value is written at the position of the first
+		// argument (static link).
 		MemTemp returnValueTemporary = new MemTemp();
 		Vector <MemTemp> defs = new Vector<MemTemp>();
 		defs.add(returnValueTemporary);
 
-		instructions.add(new AsmOPER("LDO `d0,$254,0", null, defs, null));
+		instructions.add(new AsmOPER("mov `d0, [rsp + 32]", null, defs, null));
 
 		return returnValueTemporary;
 	}
