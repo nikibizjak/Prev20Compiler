@@ -7,6 +7,7 @@ import prev.data.lin.*;
 import prev.data.asm.*;
 import prev.phase.*;
 import prev.phase.imclin.*;
+import prev.data.mem.*;
 
 /**
  * Machine code generator.
@@ -32,6 +33,15 @@ public class AsmGen extends Phase {
 			instrs.addAll(stmt.accept(new StmtGenerator(), codeChunk));
 		}
 		return new Code(codeChunk.frame, codeChunk.entryLabel, codeChunk.exitLabel, instrs);
+	}
+
+	/* Utility function for creating a Vector of temporaries using function call
+	notation. */
+	public static Vector<MemTemp> temps(MemTemp... temporaries) {
+		Vector<MemTemp> vector = new Vector<MemTemp>();
+		for (int i = 0; i < temporaries.length; i++)
+			vector.add(temporaries[i]);
+		return vector;
 	}
 
 	public void log() {

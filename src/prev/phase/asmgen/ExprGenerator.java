@@ -12,8 +12,77 @@ import prev.data.asm.*;
  */
 public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 
+	public static Vector<AsmInstr> divide(ImcBINOP.Oper operation, MemTemp dividend, MemTemp divisor) {
+		// The division and modulo operators are a bit tricky on Intel CISC
+		// processor. We can only divide using two special registers - rax and
+		// rdx. That means, that we have to save the rax and rdx register
+		// contents before performing division and then restore their values
+		// after the operation has been performed.
+		Vector<AsmInstr> instructions = new Vector<AsmInstr>();
+
+		// Save the rax and rdx register values to stack
+		instructions.add(new AsmOPER("push rax", null, null, null));
+		instructions.add(new AsmOPER("push rdx", null, null, null));
+
+		// First, move the dividend to the rax register
+		// instructions.add(new AsmMOVE("mov rax, `s0", AsmGen.temps(dividend), null));
+		instructions.add(new AsmOPER("mov rax, `s0", AsmGen.temps(dividend), null, null));
+
+		// Then, use the cqo instruction that doubles the size of the operand in
+		// register RAX by means of sign extension and stores the result in
+		// registers RDX:RAX.
+		instructions.add(new AsmOPER("cqo", null, null, null));
+
+		// Perform the signed division by the divisor temporary
+		instructions.add(new AsmOPER("idiv `s0", AsmGen.temps(divisor), null, null));
+
+		// The quotient is saved in register rax and the remainder is saved in
+		// register rdx. Depending on the type of operation we should move the
+		// correct result to the resulting temporary.
+		if (operation == ImcBINOP.Oper.DIV) {
+			instructions.add(new AsmOPER("mov `d0, rax", null, AsmGen.temps(dividend), null));
+		} else if (operation == ImcBINOP.Oper.MOD) {
+			instructions.add(new AsmOPER("mov `d0, rdx", null, AsmGen.temps(dividend), null));
+		}
+
+		// Restore rax and rdx register values from the stack
+		instructions.add(new AsmOPER("pop rdx", null, null, null));
+		instructions.add(new AsmOPER("pop rax", null, null, null));
+
+		return instructions;
+	}
+
+	public static Vector<AsmInstr> compare(ImcBINOP.Oper operation, MemTemp first, MemTemp second) {
+		// The simplest comparison operations are actually not that simple.
+		// Intel x64 processors have a command for comparison (cmp), that
+		// compares values of two registers and sets multiple flags. The
+		// flags can then be used to set the lowest bit of destination
+		// register. Because ONLY the lowest byte is set, we must first set
+		// the register value to 0.
+		Vector<AsmInstr> instructions = new Vector<AsmInstr>();
+
+		Vector<MemTemp> resultRegister = AsmGen.temps(first);
+
+		instructions.add(new AsmOPER("cmp `d0, `s1", AsmGen.temps(first, second), resultRegister, null));
+		instructions.add(new AsmOPER("mov `d0, qword 0", AsmGen.temps(first), resultRegister, null));
+
+		switch (operation) {
+			case EQU:	instructions.add(new AsmOPER("sete `db0", resultRegister, resultRegister, null));	break;
+			case NEQ:	instructions.add(new AsmOPER("setne `db0", resultRegister, resultRegister, null));	break;
+			case LTH:	instructions.add(new AsmOPER("setl `db0", resultRegister, resultRegister, null));	break;
+			case GTH:	instructions.add(new AsmOPER("setg `db0", resultRegister, resultRegister, null));	break;
+			case LEQ:	instructions.add(new AsmOPER("setle `db0", resultRegister, resultRegister, null));	break;
+			case GEQ:	instructions.add(new AsmOPER("setge `db0", resultRegister, resultRegister, null));	break;
+			default: break;
+		}
+
+		return instructions;
+	}
+
 	public MemTemp visit(ImcBINOP binOp, Vector<AsmInstr> instructions) {
 
+		// In Intel 64 assembly, the binary operations have the form of
+		// oper dst src, which translates to dst <- dst oper src.
 		MemTemp resultRegister = binOp.fstExpr.accept(this, instructions);
 		MemTemp operandRegister = binOp.sndExpr.accept(this, instructions);
 
@@ -25,90 +94,30 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 		defines.add(resultRegister);
 
 		switch (binOp.oper) {
-			// The easier operations - the ones that are already implemented in
-			// MMIX assebly language
+
+			// The easier operations that can be performed using a single instruction
 			case OR:	instructions.add(new AsmOPER("or `d0, `s1", uses, defines, null));	break;
 			case AND:	instructions.add(new AsmOPER("and `d0, `s1", uses, defines, null));	break;
 			case ADD:	instructions.add(new AsmOPER("add `d0, `s1", uses, defines, null));	break;
 			case SUB:	instructions.add(new AsmOPER("sub `d0, `s1", uses, defines, null));	break;
 			case MUL:	instructions.add(new AsmOPER("imul `d0, `s1", uses, defines, null));	break;
 
-			// The DIV and MOD operations can only be executed in special registers
-			// we can divide 64 bit number in registers EDX:EAX with number stored in r8 like so:
-			// mov	edx, upper 32 bits of dividend
-			// mov	eax, lower 32 bits of dividend
-			// mov	r8, divisor
-			// idiv	r8
-			// the result is saved in:
-			//   * RAX <- Quotient
-			//   * RDX <- Remainder
+			// The division and modulo operators require more work, so a new
+			// function is defined
 			case DIV:
-				instructions.add(new AsmOPER("push rax", null, null, null));
-				instructions.add(new AsmOPER("push rdx", null, null, null));
-				Vector<MemTemp> usesDivision = new Vector<MemTemp>();
-				usesDivision.add(resultRegister);
-				instructions.add(new AsmOPER("mov rax, `s0", usesDivision, null, null));
-				instructions.add(new AsmOPER("cqo", null, null, null));
-				Vector<MemTemp> usesDivision2 = new Vector<MemTemp>();
-				usesDivision2.add(operandRegister);
-				instructions.add(new AsmOPER("idiv `s0", usesDivision2, defines, null));
-				instructions.add(new AsmOPER("mov `d0, rax", null, usesDivision, null));
-				instructions.add(new AsmOPER("pop rdx", null, null, null));
-				instructions.add(new AsmOPER("pop rax", null, null, null));
-				break;
 			case MOD:
-				instructions.add(new AsmOPER("push rax", null, null, null));
-				instructions.add(new AsmOPER("push rdx", null, null, null));
-				Vector<MemTemp> usesDivision3 = new Vector<MemTemp>();
-				usesDivision3.add(resultRegister);
-				instructions.add(new AsmOPER("mov rax, `s0", usesDivision3, null, null));
-				instructions.add(new AsmOPER("cqo", null, null, null));
-				Vector<MemTemp> usesDivision4 = new Vector<MemTemp>();
-				usesDivision4.add(operandRegister);
-				instructions.add(new AsmOPER("idiv `s0", usesDivision4, defines, null));
-				instructions.add(new AsmOPER("mov `d0, rdx", null, usesDivision3, null));
-				instructions.add(new AsmOPER("pop rdx", null, null, null));
-				instructions.add(new AsmOPER("pop rax", null, null, null));
+				instructions.addAll(divide(binOp.oper, resultRegister, operandRegister));
 				break;
-
-			// The comparison operators will need two operations. The first will
-			// be the compare operation and the second a transformation from set
-			// {-1, 0, 1} to set {0, 1}.
-			// The comparison operator CMP $X, $Y, $Z sets the value $X to
-			//   * $X = -1, if $Y < $Z
-			//   * $X = 0, if $Y = $Z
-			//   * $X = 1, if $Y > $Z
-			// The second operation will be executed on the same register,
-			// because we will want to return this register.
+			
+			// Integer comparison is also a special case, call a compare
+			// function
 			case EQU:
-				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
-				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
-				instructions.add(new AsmOPER("sete `db0", defines, defines, null));
-				break;
 			case NEQ:
-				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
-				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
-				instructions.add(new AsmOPER("setne `db0", defines, defines, null));
-				break;
 			case LTH:
-				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
-				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
-				instructions.add(new AsmOPER("setl `db0", defines, defines, null));
-				break;
 			case GTH:
-				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
-				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
-				instructions.add(new AsmOPER("setg `db0", defines, defines, null));
-				break;
 			case LEQ:
-				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
-				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
-				instructions.add(new AsmOPER("setle `db0", defines, defines, null));
-				break;
 			case GEQ:
-				instructions.add(new AsmOPER("cmp `d0, `s1", uses, defines, null));
-				instructions.add(new AsmOPER("mov `d0, qword 0", defines, defines, null));
-				instructions.add(new AsmOPER("setge `db0", defines, defines, null));
+				instructions.addAll(compare(binOp.oper, resultRegister, operandRegister));
 				break;
 
 			default:	break;
@@ -127,7 +136,6 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 		//      address is pushed to the stack
 		//   4. Getting the result from stack
 		//   5. Popping the stack after call
-		instructions.add(new AsmOPER("; Calling function", null, null, null));
 
 		// Add function call arguments to the stack. The first function argument
 		// is ALWAYS static link.
@@ -173,13 +181,7 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 		MemTemp memoryTemporary = new MemTemp();
 		MemTemp addressTemporary = mem.addr.accept(this, instructions);
 
-		Vector<MemTemp> uses = new Vector<MemTemp>();
-		Vector<MemTemp> defs = new Vector<MemTemp>();
-
-		uses.add(addressTemporary);
-		defs.add(memoryTemporary);
-
-		instructions.add(new AsmMOVE("mov qword `d0, [`s0]", uses, defs));
+		instructions.add(new AsmMOVE("mov qword `d0, [`s0]", AsmGen.temps(addressTemporary), AsmGen.temps(memoryTemporary)));
 
 		return memoryTemporary;
 	}
@@ -187,12 +189,9 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 	public MemTemp visit(ImcNAME name, Vector<AsmInstr> instructions) {
 		MemTemp register = new MemTemp();
 
-		Vector<MemTemp> defines = new Vector<MemTemp>();
-		defines.add(register);
-
-		// Use the instruction LDA $X, $Y to load address $Y (can be label) to
-		// register $X.
-		instructions.add(new AsmOPER("lea `d0, [" + name.label.name + "]", null, defines, null));
+		// Use the lea (load effective address) command to load the address of
+		// label into our temporary
+		instructions.add(new AsmOPER("lea `d0, [" + name.label.name + "]", null, AsmGen.temps(register), null));
 		
 		return register;
 	}
@@ -211,24 +210,14 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 
 	public MemTemp visit(ImcUNOP unOp, Vector<AsmInstr> instructions) {
 		MemTemp register = unOp.subExpr.accept(this, instructions);
-		Vector<MemTemp> defines = new Vector<MemTemp>();
-		defines.add(register);
+		Vector<MemTemp> defines = AsmGen.temps(register);
 
-		// We can implement negation using the NEG $X, Y, $Z, which sets the
-		// register $X value to the result of the Y - $Z operation. If we set Y
-		// = 0, the operation is a simple integer negation.
-		// If we do the same for boolean 0...01 or 0...00, the result is a
-		// signed number -1 or -0, which is what we don't want. We can use
-		// XOR $X, $Y, Z to set the value of register $X to xor of values $Y
-		// and Z. If we set Z = 1, then the result of (1 XOR 1) = 0
-		// and (0 XOR 1) = 1.
+		// The original Appel's Tree language does not support unary operations.
+		// They should be implemented using binary operations (eg. -x = BINOP(SUB, 0, x))
+		// In our compiler, we will implement them using xor and neg instructions.
 		switch (unOp.oper) {
-			case NOT:
-				instructions.add(new AsmOPER("xor `d0, 1", defines, defines, null));
-				break;
-			case NEG:
-				instructions.add(new AsmOPER("neg `d0", defines, defines, null));
-				break;
+			case NOT:	instructions.add(new AsmOPER("xor `d0, 1", defines, defines, null));	break;
+			case NEG:	instructions.add(new AsmOPER("neg `d0", defines, defines, null));		break;
 			default: break;
 		}
 
@@ -237,22 +226,14 @@ public class ExprGenerator implements ImcVisitor<MemTemp, Vector<AsmInstr>> {
 
 	public static Vector<AsmInstr> loadConstant(MemTemp temporary, long value) {
 		Vector<AsmInstr> instructions = new Vector<AsmInstr>();
-		// When loading constant, we need to load 8 bytes (= 1 octa) Loading is
-		// done using commands SETH, SETMH, SETML and SETL. We must divide our
-		// long (= 8 bytes) into 4 wydes and load them individually into new
-		// register. If the number is negative (which can happen in the next
-		// phases), we will always need all 4 instructions, because the leftmost
-		// bit will be 1 if the number is negative. We can solve this by first
-		// loading an absolute value to registers and then negate the number.
-		Vector<MemTemp> defines = new Vector<MemTemp>();
-		defines.add(temporary);
-
+		// The Intel's 64 assembly supports loading 64 bit immediate values to
+		// registers. We can simply use mov instruction. If the value is
+		// negative, the register should be negated.
 		long absoluteValue = Math.abs(value);
 		
+		Vector<MemTemp> defines = AsmGen.temps(temporary);
+
 		instructions.add(new AsmOPER("mov `d0, qword " + absoluteValue, null, defines, null));
-		
-		// If the constant that we are trying to load is negative, negate the
-		// current register
 		if (value < 0)
 			instructions.add(new AsmOPER("neg `d0", defines, defines, null));
 

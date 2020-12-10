@@ -18,31 +18,57 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 	public Vector<AsmInstr> visit(ImcCJUMP cjump, Object arg) {
 		Vector<AsmInstr> instructions = new Vector<AsmInstr>();
 
-		// First, visit condition and get the temporary register that the result
-		// is saved to. The result will either be 0 or 1.
-		MemTemp conditionTemporary = cjump.cond.accept(new ExprGenerator(), instructions);
+		// The conditional jump instruction will be implemented as such:
+		//   * evaluate the condition expression
+		//   * if it evaluates to TRUE, we should jump to positive label
+		//   * otherwise, we should continue to the next instruction
 
-		// TODO: Optimize this
-		// For comparison like 3 == 4, we need to emit 3 instructions:
-		// cmp	rax, rbx		; compare
-		// mov	rax, qword 0	; set resulting temporary to zero
-		// sete	al				; set lowest byte of result temporary to correct value
-		// But the conditional statements, could be implemented like so:
-		// cmp	rax, rbx
-		// jge  label			; jump if greater, jump if not equal, ...		
-
-		// The negative label is directly after the condition, so we need to
-		// check if conditionTemporary contains non-zero value (=1). If it does,
-		// jump to positive label, otherwise continue.
+		// Add both possible jumps (to positive and negative label to our jumps
+		// so that we can perform liveness analysis and optimizations)
 		Vector<MemLabel> jumps = new Vector<MemLabel>();
 		jumps.add(cjump.posLabel);
 		jumps.add(cjump.negLabel);
 
-		Vector<MemTemp> uses = new Vector<MemTemp>();
-		uses.add(conditionTemporary);
+		// If the condition is a simple BINOP(oper, TEMP(...), TEMP(...)), then
+		// the conditional statement can be made better.
+		if (cjump.cond instanceof ImcBINOP) {
+			ImcBINOP conditionBinop = (ImcBINOP) cjump.cond;
+			if (conditionBinop.fstExpr instanceof ImcTEMP && conditionBinop.sndExpr instanceof ImcTEMP) {
 
+				MemTemp firstTemporary = ((ImcTEMP) conditionBinop.fstExpr).temp;
+				MemTemp secondTemporary = ((ImcTEMP) conditionBinop.sndExpr).temp;
+
+				Vector<AsmInstr> specialInstructions = new Vector<AsmInstr>();
+				specialInstructions.add(new AsmOPER("cmp `d0, `s0", AsmGen.temps(secondTemporary, firstTemporary), AsmGen.temps(firstTemporary), null));
+
+				boolean canShortenConditionalJump = true;
+				switch (conditionBinop.oper) {
+					case EQU:	specialInstructions.add(new AsmOPER("je " + cjump.posLabel.name, null, null, jumps));	break;
+					case NEQ:	specialInstructions.add(new AsmOPER("jne " + cjump.posLabel.name, null, null, jumps));	break;
+					case LTH:	specialInstructions.add(new AsmOPER("jl " + cjump.posLabel.name, null, null, jumps));	break;
+					case GTH:	specialInstructions.add(new AsmOPER("jg " + cjump.posLabel.name, null, null, jumps));	break;
+					case LEQ:	specialInstructions.add(new AsmOPER("jle " + cjump.posLabel.name, null, null, jumps));	break;
+					case GEQ:	specialInstructions.add(new AsmOPER("jge " + cjump.posLabel.name, null, null, jumps));	break;
+					default: canShortenConditionalJump = false;
+				}
+
+				if (canShortenConditionalJump) {
+					instructions.addAll(specialInstructions);
+					return instructions;
+				}
+
+			}
+		}
+
+		// First, visit condition and get the temporary register that the result
+		// is saved to. The result will either be 0 or 1.
+		MemTemp conditionTemporary = cjump.cond.accept(new ExprGenerator(), instructions);
+
+		// The negative label is directly after the condition, so we need to
+		// check if conditionTemporary contains non-zero value (=1). If it does,
+		// jump to positive label, otherwise continue.
 		// Add a jump if the conditionTemporary contains nonzero value
-		instructions.add(new AsmOPER("cmp `s0, 0", uses, null, null));
+		instructions.add(new AsmOPER("cmp `s0, 0", AsmGen.temps(conditionTemporary), AsmGen.temps(conditionTemporary), null));
 		instructions.add(new AsmOPER("jne " + cjump.posLabel.name, null, null, jumps));
 
 		return instructions;
@@ -94,9 +120,8 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 			uses.add(source);
 			defs.add(destination);
 
-			// If destination and source of the move command are not MEM
-			// instruction, then we are simply moving data from one register to
-			// another. We can use SET $X, $Y or OR $X, $Y, 0
+			// The destination and source are both temporaries, so we can simply
+			// use move instruction as we normally would.
 			instructions.add(new AsmMOVE("mov `d0, `s0", uses, defs));
 		} else if (move.src instanceof ImcMEM && move.dst instanceof ImcMEM) {
 			// The instruction is MOVE(MEM(...), MEM(...)), so we are
@@ -110,12 +135,12 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 			defs.add(temporary);
 			uses.add(sourceTemporary);
 			
-			// We can use the LDO $X, $Y, $Z, which loads data from memory
-			// location $X + $Z to register $X.
+			// First, load data from memory to temporary register
 			instructions.add(new AsmOPER("mov qword `d0, [`s0]", uses, defs, null));
 
 			uses.add(destinationTemporary);
 
+			// Then, move data from temporary register to memory
 			instructions.add(new AsmOPER("mov qword [`s1], `s0", uses, null, null));
 
 		} else if (move.src instanceof ImcMEM) {
@@ -124,16 +149,12 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 			MemTemp sourceTemporary = ((ImcMEM) move.src).addr.accept(new ExprGenerator(), instructions);
 			MemTemp destinationTemporary = move.dst.accept(new ExprGenerator(), instructions);
 
-			// We can use the LDO $X, $Y, $Z, which loads data from memory
-			// location $X + $Z to register $X.
+			// Load data from memory
 			defs.add(destinationTemporary);
 			uses.add(sourceTemporary);
 			instructions.add(new AsmOPER("mov qword `d0, [`s0]", uses, defs, null));
 		} else {
-			// The instruction is MOVE(MEM(...), ...), so we are storing data to
-			// the memory. To store the entire register data, we can use the
-			// store octa: STO $X, $Y, $Z command (store data from register $X
-			// to memory location $Y + $Z)
+			// Store data to memory
 			MemTemp sourceTemporary = move.src.accept(new ExprGenerator(), instructions);
 			MemTemp destinationTemporary = ((ImcMEM) move.dst).addr.accept(new ExprGenerator(), instructions);
 
