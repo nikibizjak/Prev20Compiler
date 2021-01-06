@@ -39,7 +39,7 @@ public class AddrResolver extends AstFullVisitor<Object, Object> {
 		if (sfxExpr.oper() == AstSfxExpr.Oper.PTR) {
 			// Check if the sfxExpr.expr() is of type SemPointer(something), if
 			// so, this expression is address
-			SemType expressionType = SemAn.ofType.get(sfxExpr.expr());
+			SemType expressionType = SemAn.ofType.get(sfxExpr.expr()).actualType();
 			if (expressionType != null && expressionType instanceof SemPointer) {
 				SemAn.isAddr.put(sfxExpr, true);
 			}
