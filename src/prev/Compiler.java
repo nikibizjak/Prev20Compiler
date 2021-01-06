@@ -123,6 +123,12 @@ public class Compiler {
 							continue;
 						}
 					}
+					if (args[argc].matches("--loop-hoisting=.*")) {
+						if (cmdLine.get("--loop-hoisting") == null) {
+							cmdLine.put("--loop-hoisting", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
 					Report.warning("Command line argument '" + args[argc] + "' ignored.");
 				} else {
 					// Source file name.
