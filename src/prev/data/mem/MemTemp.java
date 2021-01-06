@@ -1,4 +1,5 @@
 package prev.data.mem;
+import java.util.Objects;
 
 /**
  * A temporary variable.
@@ -20,6 +21,22 @@ public class MemTemp {
 	@Override
 	public String toString() {
 		return "T" + temp;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof MemTemp)) {
+			return false;
+		}
+		MemTemp memTemp = (MemTemp) o;
+		return temp == memTemp.temp;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hashCode(temp);
 	}
 
 }

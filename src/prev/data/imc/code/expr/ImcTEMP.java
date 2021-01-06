@@ -3,6 +3,7 @@ package prev.data.imc.code.expr;
 import prev.common.logger.*;
 import prev.data.mem.*;
 import prev.data.imc.visitor.*;
+import java.util.Objects;
 
 /**
  * Temporary variable.
@@ -39,5 +40,23 @@ public class ImcTEMP extends ImcExpr {
 	public String toString() {
 		return "TEMP(" + temp.temp + ")";
 	}
+
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcTEMP)) {
+			return false;
+		}
+		ImcTEMP imcTEMP = (ImcTEMP) o;
+		return Objects.equals(temp, imcTEMP.temp);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hashCode(temp);
+	}
+
 
 }
