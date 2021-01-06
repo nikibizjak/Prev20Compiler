@@ -1,14 +1,15 @@
 package prev.phase.optimisation;
 
 import prev.Compiler;
-import prev.phase.*;
-import prev.common.report.*;
-import prev.phase.optimisation.constant_folding.*;
-
-import prev.phase.abstr.*;
+import prev.common.report.Report;
+import prev.phase.Phase;
+import prev.phase.abstr.Abstr;
+import prev.phase.imclin.ChunkGenerator;
+import prev.phase.imclin.ImcLin;
+import prev.phase.optimisation.constant_folding.ConstantFolder;
 
 /**
- * Machine code generator.
+ * Appel's Tree intermediate representation optimisation.
  */
 public class Optimisation extends Phase {
 
@@ -17,8 +18,26 @@ public class Optimisation extends Phase {
     }
     
     public void optimise() {
-        Report.info("OPTIMISATION:");
+        // Some of the optimisation can be executed prior to code linearization
+        // (ie. constant folding).
         this.constantFolding();
+
+        // Linearize intermediate code
+        this.linearizeIntermediateCode();
+        // If target phase is imclin, no optimisations should be performed on
+        // linearized code.
+        if (Compiler.cmdLineArgValue("--target-phase").equals("imclin"))
+            return;
+
+        // Perform optimisations on linearized intermediate code
+    }
+
+    public void linearizeIntermediateCode() {
+        // Linearization of intermediate code.
+        try (ImcLin imclin = new ImcLin()) {
+            Abstr.tree.accept(new ChunkGenerator(), null);
+            imclin.log();
+        }
     }
 
     public void constantFolding() {
