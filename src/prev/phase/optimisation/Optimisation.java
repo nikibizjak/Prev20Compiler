@@ -7,8 +7,6 @@ import prev.phase.optimisation.constant_folding.*;
 
 import prev.phase.abstr.*;
 
-import java.util.*;
-
 /**
  * Machine code generator.
  */

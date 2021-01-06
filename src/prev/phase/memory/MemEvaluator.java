@@ -1,13 +1,24 @@
 package prev.phase.memory;
 
-import prev.data.ast.tree.*;
-import prev.data.ast.tree.decl.*;
-import prev.data.ast.tree.expr.*;
-import prev.data.ast.tree.type.*;
-import prev.data.ast.visitor.*;
-import prev.data.semtype.*;
-import prev.data.mem.*;
-import prev.phase.seman.*;
+import prev.data.ast.tree.decl.AstCompDecl;
+import prev.data.ast.tree.decl.AstFunDecl;
+import prev.data.ast.tree.decl.AstParDecl;
+import prev.data.ast.tree.decl.AstVarDecl;
+import prev.data.ast.tree.expr.AstAtomExpr;
+import prev.data.ast.tree.expr.AstCallExpr;
+import prev.data.ast.tree.expr.AstExpr;
+import prev.data.ast.tree.expr.AstPfxExpr;
+import prev.data.ast.tree.type.AstRecType;
+import prev.data.ast.visitor.AstFullVisitor;
+import prev.data.mem.MemAbsAccess;
+import prev.data.mem.MemFrame;
+import prev.data.mem.MemLabel;
+import prev.data.mem.MemRelAccess;
+import prev.data.semtype.SemChar;
+import prev.data.semtype.SemPointer;
+import prev.data.semtype.SemType;
+import prev.data.semtype.SemVoid;
+import prev.phase.seman.SemAn;
 
 /**
  * Computing memory layout: frames and accesses.

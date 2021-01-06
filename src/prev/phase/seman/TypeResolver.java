@@ -127,6 +127,7 @@ public class TypeResolver extends AstFullVisitor<SemType, TypeResolver.Mode> {
                     throw new Report.Error(functionDeclaration, "Function '" + functionDeclaration.name() + "' should return '" + getTypeName(expectedReturnType.actualType()) + "' but actually returns '" + getTypeName(bodyType.actualType()) + "'.");
 
                 break;
+            default: break;
         }
         return null;
     }
@@ -572,8 +573,8 @@ public class TypeResolver extends AstFullVisitor<SemType, TypeResolver.Mode> {
         if (!(conditionType.actualType() instanceof SemBoolean))
             throw new Report.Error(ifStatement, "Condition type must be boolean");
         
-        SemType thenType = ifStatement.thenStmt().accept(this, arg);
-        SemType elseType = ifStatement.elseStmt().accept(this, arg);
+        ifStatement.thenStmt().accept(this, arg);
+        ifStatement.elseStmt().accept(this, arg);
         
         SemType semanticType = new SemVoid();
         SemAn.ofType.put(ifStatement, semanticType);
@@ -586,7 +587,7 @@ public class TypeResolver extends AstFullVisitor<SemType, TypeResolver.Mode> {
         if (!(conditionType.actualType() instanceof SemBoolean))
             throw new Report.Error(whileStatement, "Condition type must be boolean");
         
-        SemType bodyType = whileStatement.bodyStmt().accept(this, arg);
+        whileStatement.bodyStmt().accept(this, arg);
         
         SemType semanticType = new SemVoid();
         SemAn.ofType.put(whileStatement, semanticType);

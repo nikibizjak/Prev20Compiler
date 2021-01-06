@@ -99,7 +99,6 @@ public class ExprGenerator extends AstFullVisitor<ImcExpr, Stack<MemFrame>> {
 		// expression, ... In any case it should return the MEM(...), so get
 		// the memory address that the MEM object is trying to access.
 		ImcExpr arrayInstruction = arrayExpression.arr().accept(this, frames);
-		// TODO: Fix this, because it may not be real
 		if (!(arrayInstruction instanceof ImcMEM))
 			throw new Report.Error(arrayExpression, "Instruction is not MEM!");
 
@@ -129,12 +128,11 @@ public class ExprGenerator extends AstFullVisitor<ImcExpr, Stack<MemFrame>> {
 	@Override
 	public ImcExpr visit(AstRecExpr recordExpression, Stack<MemFrame> frames) {		
 		ImcExpr recordInstruction = recordExpression.rec().accept(this, frames);
-		// TODO: Fix this, because it may not be real
 		if (!(recordInstruction instanceof ImcMEM))
 			throw new Report.Error(recordExpression, "The access to record is not MEM?");
 		ImcExpr recordAddressInstruction = ((ImcMEM) recordInstruction).addr;
 
-		ImcExpr recordComponentInstruction = recordExpression.comp().accept(this, frames);
+		recordExpression.comp().accept(this, frames);
 
 		AstMemDecl componentDeclaration = (AstMemDecl) SemAn.declaredAt.get(recordExpression.comp());
 		MemRelAccess relativeMemoryAccess = (MemRelAccess) Memory.accesses.get(componentDeclaration);

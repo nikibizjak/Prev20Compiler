@@ -1,14 +1,23 @@
 package prev.phase.asmgen;
 
-import java.util.*;
-import prev.data.imc.code.*;
-import prev.data.imc.code.expr.*;
-import prev.data.imc.code.stmt.*;
-import prev.data.imc.visitor.*;
-import prev.data.mem.*;
-import prev.data.asm.*;
-import prev.common.report.*;
-import prev.data.lin.*;
+import java.util.Vector;
+
+import prev.data.asm.AsmInstr;
+import prev.data.asm.AsmLABEL;
+import prev.data.asm.AsmMOVE;
+import prev.data.asm.AsmOPER;
+import prev.data.imc.code.expr.ImcMEM;
+import prev.data.imc.code.stmt.ImcCJUMP;
+import prev.data.imc.code.stmt.ImcESTMT;
+import prev.data.imc.code.stmt.ImcJUMP;
+import prev.data.imc.code.stmt.ImcLABEL;
+import prev.data.imc.code.stmt.ImcMOVE;
+import prev.data.imc.code.stmt.ImcSTMTS;
+import prev.data.imc.code.stmt.ImcStmt;
+import prev.data.imc.visitor.ImcVisitor;
+import prev.data.lin.LinCodeChunk;
+import prev.data.mem.MemLabel;
+import prev.data.mem.MemTemp;
 
 /**
  * Machine code generator for ststements.
@@ -40,7 +49,7 @@ public class StmtGenerator implements ImcVisitor<Vector<AsmInstr>, Object> {
 
 	public Vector<AsmInstr> visit(ImcESTMT eStmt, Object arg) {
 		Vector<AsmInstr> instructions = new Vector<AsmInstr>();
-		MemTemp register = eStmt.expr.accept(new ExprGenerator(), instructions);
+		eStmt.expr.accept(new ExprGenerator(), instructions);
 		return instructions;
 	}
 

@@ -1,23 +1,37 @@
 package prev;
 
-import java.util.*;
+import java.util.HashMap;
 
-import org.antlr.v4.runtime.*;
+import org.antlr.v4.runtime.Token;
 
-import prev.common.report.*;
-import prev.data.ast.tree.*;
-import prev.phase.lexan.*;
-import prev.phase.synan.*;
-import prev.phase.abstr.*;
+import prev.common.report.Report;
+import prev.data.ast.tree.AstNode;
+import prev.data.lin.LinCodeChunk;
+import prev.phase.abstr.AbsLogger;
+import prev.phase.abstr.Abstr;
 import prev.phase.all.FinalPhase;
-import prev.phase.seman.*;
-import prev.phase.memory.*;
-import prev.phase.imcgen.*;
-import prev.phase.imclin.*;
-import prev.phase.asmgen.*;
-import prev.phase.livean.*;
-import prev.phase.regall.*;
-import prev.phase.optimisation.*;
+import prev.phase.asmgen.AsmGen;
+import prev.phase.imcgen.CodeGenerator;
+import prev.phase.imcgen.ImcGen;
+import prev.phase.imcgen.ImcLogger;
+import prev.phase.imclin.ChunkGenerator;
+import prev.phase.imclin.ImcLin;
+import prev.phase.lexan.LexAn;
+import prev.phase.livean.LiveAn;
+import prev.phase.memory.MemEvaluator;
+import prev.phase.memory.MemLogger;
+import prev.phase.memory.Memory;
+import prev.phase.optimisation.Optimisation;
+import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraph;
+import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraphBuilder;
+import prev.phase.optimisation.loop_hoisting.LoopHoister;
+import prev.phase.regall.RegAll;
+import prev.phase.seman.AddrResolver;
+import prev.phase.seman.NameResolver;
+import prev.phase.seman.SemAn;
+import prev.phase.seman.SemLogger;
+import prev.phase.seman.TypeResolver;
+import prev.phase.synan.SynAn;
 
 /**
  * The compiler.
@@ -223,8 +237,8 @@ public class Compiler {
 					Abstr.tree.accept(new ChunkGenerator(), null);
 					imclin.log();
 
-					//Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
-					//System.out.println("EXIT CODE: " + interpreter.run("_main"));
+					// Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+					// System.out.println("EXIT CODE: " + interpreter.run("_main"));
 				}
 				if (Compiler.cmdLineArgValue("--target-phase").equals("imclin"))
 					break;
