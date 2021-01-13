@@ -148,6 +148,12 @@ public class Compiler {
 							continue;
 						}
 					}
+					if (args[argc].matches("--common-subexpression-elimination=.*")) {
+						if (cmdLine.get("--common-subexpression-elimination") == null) {
+							cmdLine.put("--common-subexpression-elimination", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
 					if (args[argc].matches("--dead-code-elimination=.*")) {
 						if (cmdLine.get("--dead-code-elimination") == null) {
 							cmdLine.put("--dead-code-elimination", args[argc].replaceFirst("^[^=]*=", ""));

@@ -13,6 +13,7 @@ import prev.phase.optimisation.peephole_optimisation.*;
 import prev.phase.optimisation.constant_propagation.*;
 import prev.phase.optimisation.copy_propagation.*;
 import prev.phase.optimisation.dead_code_elimination.*;
+import prev.phase.optimisation.common_subexpression_elimination.*;
 import prev.phase.optimisation.loop_hoisting.*;
 import java.util.*;
 
@@ -76,6 +77,7 @@ public class Optimisation extends Phase {
         boolean peepholeOptimisation = getFlagValue("--peephole-optimisation");
         boolean constantPropagation = getFlagValue("--constant-propagation");
         boolean copyPropagation = getFlagValue("--copy-propagation");
+        boolean commonSubexpressionElimination = getFlagValue("--common-subexpression-elimination");
         boolean deadCodeElimination = getFlagValue("--dead-code-elimination");
 
         System.out.printf("Optimising frame %s%n", graph.codeChunk.frame.label.name);
@@ -110,6 +112,11 @@ public class Optimisation extends Phase {
 
             if (copyPropagation) {
                 boolean graphChanged = CopyPropagation.run(graph);
+                repeatOptimisations = repeatOptimisations || graphChanged;
+            }
+
+            if (commonSubexpressionElimination) {
+                boolean graphChanged = CommonSubexpressionElimination.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
             }
 
