@@ -129,6 +129,12 @@ public class Compiler {
 							continue;
 						}
 					}
+					if (args[argc].matches("--peephole-optimisation=.*")) {
+						if (cmdLine.get("--peephole-optimisation") == null) {
+							cmdLine.put("--peephole-optimisation", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
 					if (args[argc].matches("--constant-propagation=.*")) {
 						if (cmdLine.get("--constant-propagation") == null) {
 							cmdLine.put("--constant-propagation", args[argc].replaceFirst("^[^=]*=", ""));

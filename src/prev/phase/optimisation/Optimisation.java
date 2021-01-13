@@ -9,6 +9,7 @@ import prev.phase.abstr.Abstr;
 import prev.phase.imclin.*;
 import prev.phase.optimisation.common.control_flow_graph.*;
 import prev.phase.optimisation.constant_folding.*;
+import prev.phase.optimisation.peephole_optimisation.*;
 import prev.phase.optimisation.constant_propagation.*;
 import prev.phase.optimisation.copy_propagation.*;
 import prev.phase.optimisation.dead_code_elimination.*;
@@ -72,6 +73,7 @@ public class Optimisation extends Phase {
         // Check which types of optimisation should be performed
         boolean constantFolding = getFlagValue("--constant-folding");
         boolean symbolicConstantFolding = getFlagValue("--symbolic-constant-folding");
+        boolean peepholeOptimisation = getFlagValue("--peephole-optimisation");
         boolean constantPropagation = getFlagValue("--constant-propagation");
         boolean copyPropagation = getFlagValue("--copy-propagation");
         boolean deadCodeElimination = getFlagValue("--dead-code-elimination");
@@ -85,6 +87,11 @@ public class Optimisation extends Phase {
         boolean repeatOptimisations = false;
         do {
             repeatOptimisations = false;
+
+            if (peepholeOptimisation) {
+                boolean graphChanged = PeepholeOptimisation.run(graph);
+                repeatOptimisations = repeatOptimisations || graphChanged;
+            }
 
             if (constantFolding) {
                 boolean graphChanged = ConstantFolding.run(graph);
