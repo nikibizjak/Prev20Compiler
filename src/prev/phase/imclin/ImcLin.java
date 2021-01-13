@@ -67,4 +67,9 @@ public class ImcLin extends Phase {
 		return new Vector<LinCodeChunk>(codeChunks);
 	}
 
+	public static void setCodeChunks(Vector<LinCodeChunk> codeChunks) {
+		ImcLin.codeChunks.clear();
+		ImcLin.codeChunks.addAll(codeChunks);
+	}
+
 }

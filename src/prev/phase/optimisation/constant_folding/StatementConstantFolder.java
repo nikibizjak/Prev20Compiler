@@ -11,36 +11,36 @@ import prev.data.imc.visitor.*;
 /**
  * Statement constant folder.
  */
-public class StatementConstantFolder implements ImcVisitor<ImcStmt, Object> {
+public class StatementConstantFolder implements ImcVisitor<ImcStmt, ImcVisitor<ImcExpr, Object>> {
 
-	public ImcStmt visit(ImcCJUMP imcCJump, Object argument) {
-		ImcExpr cond = imcCJump.cond.accept(new ExpressionConstantFolder(), null);
+	public ImcStmt visit(ImcCJUMP imcCJump, ImcVisitor<ImcExpr, Object> expressionVisitor) {
+		ImcExpr cond = imcCJump.cond.accept(expressionVisitor, null);
 		return new ImcCJUMP(cond, imcCJump.posLabel, imcCJump.negLabel);
 	}
 
-	public ImcStmt visit(ImcESTMT imcEStmt, Object argument) {
-		ImcExpr expr = imcEStmt.expr.accept(new ExpressionConstantFolder(), null);
+	public ImcStmt visit(ImcESTMT imcEStmt, ImcVisitor<ImcExpr, Object> expressionVisitor) {
+		ImcExpr expr = imcEStmt.expr.accept(expressionVisitor, null);
 		return new ImcESTMT(expr);
 	}
 
-	public ImcStmt visit(ImcJUMP imcJump, Object argument) {
+	public ImcStmt visit(ImcJUMP imcJump, ImcVisitor<ImcExpr, Object> expressionVisitor) {
 		return imcJump;
 	}
 
-	public ImcStmt visit(ImcLABEL imcLabel, Object argument) {
+	public ImcStmt visit(ImcLABEL imcLabel, ImcVisitor<ImcExpr, Object> expressionVisitor) {
 		return imcLabel;
 	}
 
-	public ImcStmt visit(ImcMOVE imcMove, Object argument) {
-        ImcExpr source = imcMove.src.accept(new ExpressionConstantFolder(), null);
-        ImcExpr destination = imcMove.dst.accept(new ExpressionConstantFolder(), null);
+	public ImcStmt visit(ImcMOVE imcMove, ImcVisitor<ImcExpr, Object> expressionVisitor) {
+        ImcExpr source = imcMove.src.accept(expressionVisitor, null);
+        ImcExpr destination = imcMove.dst.accept(expressionVisitor, null);
 		return new ImcMOVE(destination, source);
 	}
 
-	public ImcStmt visit(ImcSTMTS imcStmts, Object argument) {
+	public ImcStmt visit(ImcSTMTS imcStmts, ImcVisitor<ImcExpr, Object> expressionVisitor) {
 		Vector<ImcStmt> result = new Vector<ImcStmt>();
 		for (ImcStmt stmt : imcStmts.stmts()) {
-			result.add(stmt.accept(this, null));
+			result.add(stmt.accept(this, expressionVisitor));
 		}
 		return new ImcSTMTS(result);
 	}

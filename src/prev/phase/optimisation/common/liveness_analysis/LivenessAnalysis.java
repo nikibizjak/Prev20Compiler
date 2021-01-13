@@ -8,6 +8,10 @@ import java.util.*;
  * Liveness analysis.
  */
 public class LivenessAnalysis {
+
+	public static void run(ControlFlowGraph graph) {
+		analysis(graph);
+	}
 	
 	public static void analysis(ControlFlowGraph graph) {
 		// Set liveIn and liveOut for each node to empty sets
@@ -15,10 +19,15 @@ public class LivenessAnalysis {
 			node.clearLiveIn();
 			node.clearLiveOut();
 
-			// Also compute definitions and uses of each node
 			StmtGenerator.UsesDefinitions usesDefinitions = getUsesDefinitions(node);
 			HashSet<ImcTEMP> uses = new HashSet<ImcTEMP>(usesDefinitions.uses);
 			HashSet<ImcTEMP> defines = new HashSet<ImcTEMP>(usesDefinitions.definitions);
+			if (node.getSuccessors().isEmpty()) {
+				// This is the last node (or last statement) in control-flow
+				// graph. To make sure that nodes with return value get lost, we
+				// make the last node USE return value temporary.
+				uses.add(new ImcTEMP(graph.codeChunk.frame.RV));
+			}
 			node.setUses(uses);
 			node.setDefines(defines);
 		}

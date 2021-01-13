@@ -1,8 +1,38 @@
 package prev.phase.optimisation.common.control_flow_graph;
 
 import java.util.Set;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import prev.data.lin.*;
 
-public class ControlFlowGraph extends DirectedGraph<ControlFlowGraphNode> {
+public class ControlFlowGraph {
+
+    public final LinCodeChunk codeChunk;
+    public LinkedHashSet<ControlFlowGraphNode> nodes;
+
+    public ControlFlowGraph(LinCodeChunk codeChunk) {
+        this.codeChunk = codeChunk;
+        this.nodes = new LinkedHashSet<ControlFlowGraphNode>();
+    }
+
+    public void addNode(ControlFlowGraphNode node) {
+        this.nodes.add(node);
+    }
+
+    public boolean containsNode(ControlFlowGraphNode node) {
+        return this.nodes.contains(node);
+    }
+
+    public void addEdge(ControlFlowGraphNode first, ControlFlowGraphNode second) {
+        if (!this.containsNode(first))
+            this.addNode(first);
+        
+        if (!this.containsNode(second))
+            this.addNode(second);
+        
+        first.addSuccessor(second);
+        second.addPredecessor(first);
+    }
     
     /** Control-flow graph modification operations */
     public void insertBefore(ControlFlowGraphNode node, ControlFlowGraphNode prepend) {
@@ -32,6 +62,7 @@ public class ControlFlowGraph extends DirectedGraph<ControlFlowGraphNode> {
     }
 
     public void removeNode(ControlFlowGraphNode node) {
+        this.nodes.remove(node);
         Set<ControlFlowGraphNode> predecessors = (Set<ControlFlowGraphNode>) node.getPredecessors();
         Set<ControlFlowGraphNode> successors = (Set<ControlFlowGraphNode>) node.getSuccessors();
 
@@ -48,6 +79,23 @@ public class ControlFlowGraph extends DirectedGraph<ControlFlowGraphNode> {
 
         node.successors.clear();
         node.predecessors.clear();
+    }
+
+    public void print() {
+        if (this.nodes.size() <= 0)
+            return;
+        
+        ControlFlowGraphNode firstNode = this.nodes.iterator().next();
+        ControlFlowGraph.print(firstNode, new HashSet<ControlFlowGraphNode>());
+    }
+
+    private static void print(ControlFlowGraphNode node, HashSet<ControlFlowGraphNode> alreadyPrinted) {
+        System.out.println(node);
+        alreadyPrinted.add(node);
+        for (ControlFlowGraphNode successor : ((Set<ControlFlowGraphNode>) node.getSuccessors())) {
+            if (!alreadyPrinted.contains(successor))
+                print(successor, alreadyPrinted);
+        }
     }
 
 }

@@ -5,11 +5,11 @@ import prev.data.imc.code.expr.*;
 import prev.common.report.*;
 import java.util.*;
 
-public class ControlFlowGraphNode extends Node {
+public class ControlFlowGraphNode {
 
     public ImcStmt statement;
-    public Set<ControlFlowGraphNode> predecessors = new HashSet<ControlFlowGraphNode>();
-    public Set<ControlFlowGraphNode> successors = new HashSet<ControlFlowGraphNode>();
+    public LinkedHashSet<ControlFlowGraphNode> predecessors = new LinkedHashSet<ControlFlowGraphNode>();
+    public LinkedHashSet<ControlFlowGraphNode> successors = new LinkedHashSet<ControlFlowGraphNode>();
 
     /** Sets for liveness analysis */
     private HashSet<ImcTEMP> liveIn = new HashSet<ImcTEMP>();
@@ -19,6 +19,10 @@ public class ControlFlowGraphNode extends Node {
     private HashSet<ImcTEMP> uses = new HashSet<ImcTEMP>();
     private HashSet<ImcTEMP> defines = new HashSet<ImcTEMP>();
 
+    /** Sets for reaching definitions analysis */
+    private HashSet<ControlFlowGraphNode> reachingDefinitionsIn = new HashSet<ControlFlowGraphNode>();
+    private HashSet<ControlFlowGraphNode> reachingDefinitionsOut = new HashSet<ControlFlowGraphNode>();
+
     /** Dominators */
     private HashSet<ControlFlowGraphNode> dominators = new HashSet<ControlFlowGraphNode>();
     ControlFlowGraphNode immediateDominator = null;
@@ -27,24 +31,20 @@ public class ControlFlowGraphNode extends Node {
         this.statement = statement;
     }
     
-    public void addSuccessor(Node node) {
-        if (!(node instanceof ControlFlowGraphNode))
-            throw new Report.Error("Node is not instance of ControlFlowGraphNode");
+    public void addSuccessor(ControlFlowGraphNode node) {
         this.successors.add((ControlFlowGraphNode) node);
     }
 
-    public void addPredecessor(Node node) {
-        if (!(node instanceof ControlFlowGraphNode))
-            throw new Report.Error("Node is not instance of ControlFlowGraphNode");
+    public void addPredecessor(ControlFlowGraphNode node) {
         this.predecessors.add((ControlFlowGraphNode) node);
     }
 
-    public Set getPredecessors() {
-        return new HashSet<ControlFlowGraphNode>(this.predecessors);
+    public LinkedHashSet<ControlFlowGraphNode> getPredecessors() {
+        return new LinkedHashSet<ControlFlowGraphNode>(this.predecessors);
     }
 
-    public Set getSuccessors() {
-        return new HashSet<ControlFlowGraphNode>(this.successors);
+    public LinkedHashSet<ControlFlowGraphNode> getSuccessors() {
+        return new LinkedHashSet<ControlFlowGraphNode>(this.successors);
     }
 
     /** Getters and setters for dominators */
@@ -104,6 +104,23 @@ public class ControlFlowGraphNode extends Node {
 
     public void clearLiveOut() {
         this.liveOut.clear();
+    }
+
+    /** Getters and setters for reaching definitions analysis */
+    public HashSet<ControlFlowGraphNode> getReachingDefinitionsIn() {
+        return new HashSet<ControlFlowGraphNode>(this.reachingDefinitionsIn);
+    }
+
+    public void setReachingDefinitionsIn(HashSet<ControlFlowGraphNode> reachingDefinitionsIn) {
+        this.reachingDefinitionsIn = reachingDefinitionsIn;
+    }
+
+    public HashSet<ControlFlowGraphNode> getReachingDefinitionsOut() {
+        return new HashSet<ControlFlowGraphNode>(this.reachingDefinitionsOut);
+    }
+
+    public void setReachingDefinitionsOut(HashSet<ControlFlowGraphNode> reachingDefinitionsOut) {
+        this.reachingDefinitionsOut = reachingDefinitionsOut;
     }
 
     @Override

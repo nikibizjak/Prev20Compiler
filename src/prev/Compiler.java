@@ -123,6 +123,30 @@ public class Compiler {
 							continue;
 						}
 					}
+					if (args[argc].matches("--symbolic-constant-folding=.*")) {
+						if (cmdLine.get("--symbolic-constant-folding") == null) {
+							cmdLine.put("--symbolic-constant-folding", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--constant-propagation=.*")) {
+						if (cmdLine.get("--constant-propagation") == null) {
+							cmdLine.put("--constant-propagation", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--copy-propagation=.*")) {
+						if (cmdLine.get("--copy-propagation") == null) {
+							cmdLine.put("--copy-propagation", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--dead-code-elimination=.*")) {
+						if (cmdLine.get("--dead-code-elimination") == null) {
+							cmdLine.put("--dead-code-elimination", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
 					if (args[argc].matches("--loop-hoisting=.*")) {
 						if (cmdLine.get("--loop-hoisting") == null) {
 							cmdLine.put("--loop-hoisting", args[argc].replaceFirst("^[^=]*=", ""));
@@ -234,12 +258,11 @@ public class Compiler {
 				// Optimize generated intermediate code. The optimisation phase
 				// will also perform linearization of intermediate code.
 				try (Optimisation optimisation = new Optimisation()) {
-					optimisation.optimise();
-					ImcGen.exprImc.lock();
+					optimisation.run();
 				}
 				if (Compiler.cmdLineArgValue("--target-phase").equals("optimisation"))
 					break;
-				
+								
 				// Machine code generation.
 				try (AsmGen asmgen = new AsmGen()) {
 					asmgen.genAsmCodes();

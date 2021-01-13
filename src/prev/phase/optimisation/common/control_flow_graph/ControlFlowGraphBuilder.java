@@ -2,6 +2,8 @@ package prev.phase.optimisation.common.control_flow_graph;
 
 import java.util.HashMap;
 import java.util.Vector;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import prev.data.lin.*;
 import prev.data.imc.code.stmt.*;
 import prev.data.mem.*;
@@ -9,7 +11,7 @@ import prev.data.mem.*;
 public class ControlFlowGraphBuilder {
 
     public static ControlFlowGraph build(LinCodeChunk codeChunk) {
-        ControlFlowGraph controlFlowGraph = new ControlFlowGraph();
+        ControlFlowGraph controlFlowGraph = new ControlFlowGraph(codeChunk);
 
         if (codeChunk.stmts().size() <= 0)
             return controlFlowGraph;
@@ -65,17 +67,17 @@ public class ControlFlowGraphBuilder {
                 // The CJUMP statement is similar to JUMP statement, but it can
                 // jump to two different label.
 
-                // Handle positive label
-                MemLabel positiveJumpLabel = ((ImcCJUMP) previousStatement).posLabel;
-                ControlFlowGraphNode positiveJumpNode = labels.get(positiveJumpLabel);
-                if (positiveJumpNode != null)
-                    controlFlowGraph.addEdge(previousNode, positiveJumpNode);
-
                 // Handle negative label
                 MemLabel negativeJumpLabel = ((ImcCJUMP) previousStatement).negLabel;
                 ControlFlowGraphNode negativeJumpNode = labels.get(negativeJumpLabel);
                 if (negativeJumpNode != null)
                     controlFlowGraph.addEdge(previousNode, negativeJumpNode);
+
+                // Handle positive label
+                MemLabel positiveJumpLabel = ((ImcCJUMP) previousStatement).posLabel;
+                ControlFlowGraphNode positiveJumpNode = labels.get(positiveJumpLabel);
+                if (positiveJumpNode != null)
+                    controlFlowGraph.addEdge(previousNode, positiveJumpNode);
             } else {
                 // Add an edge in control-flow graph between previousNode and
                 // currentStatement (this will also insert both nodes into the graph).
@@ -86,6 +88,22 @@ public class ControlFlowGraphBuilder {
             previousNode = currentNode;
         }
         return controlFlowGraph;
+    }
+
+    private static void toStatementList(ControlFlowGraphNode currentNode, HashSet<ControlFlowGraphNode> alreadyVisited, Vector<ImcStmt> statements) {
+        statements.add(currentNode.statement);
+        alreadyVisited.add(currentNode);
+        for (ControlFlowGraphNode successor : ((LinkedHashSet<ControlFlowGraphNode>) currentNode.getSuccessors())) {
+            if (!alreadyVisited.contains(successor))
+                toStatementList(successor, alreadyVisited, statements);
+        }
+    }
+
+    public static Vector<ImcStmt> toStatements(ControlFlowGraph graph) {
+        Vector<ImcStmt> statements = new Vector<ImcStmt>();
+        ControlFlowGraphNode initialNode = graph.nodes.iterator().next();
+        toStatementList(initialNode, new HashSet<ControlFlowGraphNode>(), statements);
+        return statements;
     }
 
 }
