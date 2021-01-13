@@ -20,7 +20,7 @@ import java.util.*;
  */
 public class Optimisation extends Phase {
 
-    public static int DEFAULT_MAX_ITERATIONS = 64;
+    public static int DEFAULT_MAX_ITERATIONS = 32;
 
 	public Optimisation() {
 		super("optimisation");
@@ -84,6 +84,7 @@ public class Optimisation extends Phase {
         int currentIteration = 0;
         boolean repeatOptimisations = false;
         do {
+            repeatOptimisations = false;
 
             if (constantFolding) {
                 boolean graphChanged = ConstantFolding.run(graph);

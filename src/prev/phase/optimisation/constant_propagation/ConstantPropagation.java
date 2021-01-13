@@ -31,8 +31,8 @@ public class ConstantPropagation {
         // should change to true.
         boolean hasGraphChanged = false;
 
-        ReachingDefinitionsAnalysis.run(graph);
         LivenessAnalysis.run(graph);
+        ReachingDefinitionsAnalysis.run(graph);
 
         HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> definitions = ReachingDefinitionsAnalysis.definitions(graph);
 
@@ -55,8 +55,9 @@ public class ConstantPropagation {
                 if (canPerformConstantPropagation) {
                     ImcCONST constantValue = getConstantValue(reachingDefinitions.iterator().next().statement);
                     if (constantValue != null) {
-                        node.statement = node.statement.accept(new StatementReplacer(), new Replacement(usedTemporary, constantValue));
-                        hasGraphChanged = true;
+                        ImcStmt newStatement = node.statement.accept(new StatementReplacer(), new Replacement(usedTemporary, constantValue));
+                        hasGraphChanged = hasGraphChanged || !node.statement.toString().equals(newStatement.toString());
+                        node.statement = newStatement;
                     }
                 }
             }
