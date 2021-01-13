@@ -349,6 +349,11 @@ public class Interpreter {
 				System.out.printf("%c", (char) ((long) c) % 0x100);
 				return;
 			}
+			if (imcCall.label.name.equals("_putInteger")) {
+				Long c = memLD(tempLD(SP, false) + 1 * 8, false);
+				System.out.printf("%d", (long) c);
+				return;
+			}
 			if (imcCall.label.name.equals("_getChar")) {
 				char c = '\n';
 				try {

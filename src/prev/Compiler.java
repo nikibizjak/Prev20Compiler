@@ -16,6 +16,7 @@ import prev.phase.imcgen.ImcGen;
 import prev.phase.imcgen.ImcLogger;
 import prev.phase.imclin.ChunkGenerator;
 import prev.phase.imclin.ImcLin;
+import prev.phase.imclin.Interpreter;
 import prev.phase.lexan.LexAn;
 import prev.phase.livean.LiveAn;
 import prev.phase.memory.MemEvaluator;
@@ -41,7 +42,7 @@ public class Compiler {
 	// COMMAND LINE ARGUMENTS
 
 	/** All valid phases of the compiler. */
-	private static final String phases = "none|lexan|synan|abstr|seman|memory|imcgen|optimisation|imclin|asmgen|livean|regall|all";
+	private static final String phases = "none|lexan|synan|abstr|seman|memory|imcgen|optimisation|interpreter|imclin|asmgen|livean|regall|all";
 
 	/** Values of command line arguments. */
 	private static HashMap<String, String> cmdLine = new HashMap<String, String>();
@@ -268,6 +269,21 @@ public class Compiler {
 				}
 				if (Compiler.cmdLineArgValue("--target-phase").equals("optimisation"))
 					break;
+				
+				// Additional phase that can only be executed using
+				// --target-phase=interpreter flag. It runs the code using
+				// intermediate representation interpreter. 
+				if (Compiler.cmdLineArgValue("--target-phase").equals("interpreter")) {
+					Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+					System.out.println("Running program");
+					long startTime = System.currentTimeMillis();
+					long exitCode = interpreter.run("_main");
+					long endTime = System.currentTimeMillis();
+					long elapsedTime = endTime - startTime;
+					System.out.printf("Exit code: %d%n", exitCode);
+					System.out.printf("Elapsed time: %d%n", elapsedTime);
+					break;
+				}
 								
 				// Machine code generation.
 				try (AsmGen asmgen = new AsmGen()) {
