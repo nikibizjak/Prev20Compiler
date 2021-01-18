@@ -80,7 +80,7 @@ public class Optimisation extends Phase {
         boolean commonSubexpressionElimination = getFlagValue("--common-subexpression-elimination");
         boolean deadCodeElimination = getFlagValue("--dead-code-elimination");
 
-        System.out.printf("Optimising frame %s%n", graph.codeChunk.frame.label.name);
+        Report.debug(String.format("Optimising frame %s", graph.codeChunk.frame.label.name));
 
         // Execute optimisations one by one until ALL optimisations stop
         // modifying control-flow graph or number of iterations exceeds maximum
@@ -91,45 +91,59 @@ public class Optimisation extends Phase {
             repeatOptimisations = false;
 
             if (peepholeOptimisation) {
+                Report.debug("Peephole optimisations started");
                 boolean graphChanged = PeepholeOptimisation.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Peephole optimisations ended");
             }
 
             if (commonSubexpressionElimination) {
+                Report.debug("Common subexpression elimination started");
                 boolean graphChanged = CommonSubexpressionElimination.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Common subexpression elimination ended");
             }
 
             if (constantFolding) {
+                Report.debug("Constant folding started");
                 boolean graphChanged = ConstantFolding.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Constant folding ended");
             }
 
             if (symbolicConstantFolding) {
+                Report.debug("Symbolic constant folding started");
                 boolean graphChanged = SymbolicConstantFolding.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Symbolic constant folding ended");
             }
 
             if (constantPropagation) {
+                Report.debug("Constant propagation started");
                 boolean graphChanged = ConstantPropagation.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Constant propagation ended");
             }
 
             if (copyPropagation) {
+                Report.debug("Copy propagation started");
                 boolean graphChanged = CopyPropagation.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Copy propagation ended");
             }
 
             if (deadCodeElimination) {
+                Report.debug("Dead code elimination started");
                 boolean graphChanged = DeadCodeElimination.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Dead code elimination ended");
             }
 
             currentIteration += 1;
 
         } while (repeatOptimisations && currentIteration < maxIterations);
 
-        System.out.printf("  * optimisation completed in %d iterations%n", currentIteration);
+        Report.debug(String.format("  * optimisation completed in %d iterations", currentIteration));
 
     }
 
