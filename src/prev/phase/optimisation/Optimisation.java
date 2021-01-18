@@ -2,7 +2,7 @@ package prev.phase.optimisation;
 
 import prev.Compiler;
 import prev.common.report.Report;
-import prev.data.lin.LinCodeChunk;
+import prev.data.lin.*;
 import prev.data.imc.code.stmt.*;
 import prev.phase.Phase;
 import prev.phase.abstr.Abstr;
@@ -161,7 +161,11 @@ public class Optimisation extends Phase {
     }
 
 	public void log() {
-        return;
+        OptimisationLogger optimisationLogger = new OptimisationLogger(logger);
+		for (LinDataChunk dataChunk : ImcLin.dataChunks())
+            optimisationLogger.log(dataChunk);
+		for (LinCodeChunk codeChunk : ImcLin.codeChunks())
+            optimisationLogger.log(codeChunk);
 	}
 
 }

@@ -272,6 +272,7 @@ public class Compiler {
 				// will also perform linearization of intermediate code.
 				try (Optimisation optimisation = new Optimisation()) {
 					optimisation.run();
+					optimisation.log();
 				}
 				if (Compiler.cmdLineArgValue("--target-phase").equals("optimisation"))
 					break;
