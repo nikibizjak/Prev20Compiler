@@ -83,4 +83,40 @@ public class ImcCALL extends ImcExpr {
 		return buffer.toString();
 	}
 
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcCALL)) {
+			return false;
+		}
+		ImcCALL imcCALL = (ImcCALL) o;
+
+		if (!label.equals(imcCALL.label))
+			return false;
+		
+		if (args.size() != imcCALL.args.size())
+			return false;
+		
+		for (int i = 0; i < args.size(); i++) {
+			boolean equals = args.get(i).equals(imcCALL.args.get(i));
+			if (!equals)
+				return false;
+		}
+
+		return true;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = result * prime * label.hashCode();
+		for (ImcExpr argument : args) {
+			result = result * prime * argument.hashCode();
+		}
+		return result;
+	}
+
 }

@@ -40,4 +40,21 @@ public class ImcLABEL extends ImcStmt {
 		return "LABEL(" + label.name + ")";
 	}
 
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcLABEL)) {
+			return false;
+		}
+		ImcLABEL imcLABEL = (ImcLABEL) o;
+		return label.equals(imcLABEL.label);
+	}
+
+	@Override
+	public int hashCode() {
+		return label.hashCode();
+	}
+
 }

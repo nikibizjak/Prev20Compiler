@@ -39,4 +39,21 @@ public class ImcCONST extends ImcExpr {
 		return "CONST(" + value + ")";
 	}
 
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcCONST)) {
+			return false;
+		}
+		ImcCONST imcCONST = (ImcCONST) o;
+		return value == imcCONST.value;
+	}
+
+	@Override
+	public int hashCode() {
+		return Long.hashCode(value);
+	}
+
 }

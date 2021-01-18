@@ -26,4 +26,20 @@ public class MemLabel {
 		this.name = "_" + name;
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof MemLabel)) {
+			return false;
+		}
+		MemLabel memLabel = (MemLabel) o;
+		return name.equals(memLabel.name);
+	}
+
+	@Override
+	public int hashCode() {
+		return name.hashCode();
+	}
+
 }

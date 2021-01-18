@@ -56,4 +56,26 @@ public class ImcBINOP extends ImcExpr {
 		return "BINOP(" + oper + "," + fstExpr.toString() + "," + sndExpr.toString() + ")";
 	}
 
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcBINOP)) {
+			return false;
+		}
+		ImcBINOP imcBINOP = (ImcBINOP) o;
+		return oper == imcBINOP.oper && fstExpr.equals(imcBINOP.fstExpr) && sndExpr.equals(imcBINOP.sndExpr);
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = result * prime * oper.hashCode();
+		result = result * prime * fstExpr.hashCode();
+		result = result * prime * sndExpr.hashCode();
+		return result;
+	}
+
 }

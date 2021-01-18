@@ -40,4 +40,22 @@ public class ImcNAME extends ImcExpr {
 		return "NAME(" + label.name + ")";
 	}
 
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcNAME)) {
+			return false;
+		}
+		ImcNAME imcNAME = (ImcNAME) o;
+		return label.equals(imcNAME.label);
+	}
+
+	@Override
+	public int hashCode() {
+		return label.hashCode();
+	}
+
+
 }

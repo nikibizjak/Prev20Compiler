@@ -1,5 +1,4 @@
 package prev.data.mem;
-import java.util.Objects;
 
 /**
  * A temporary variable.
@@ -36,7 +35,7 @@ public class MemTemp {
 
 	@Override
 	public int hashCode() {
-		return Objects.hashCode(temp);
+		return Long.hashCode(temp);
 	}
 
 }
