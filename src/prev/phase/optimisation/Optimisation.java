@@ -95,6 +95,11 @@ public class Optimisation extends Phase {
                 repeatOptimisations = repeatOptimisations || graphChanged;
             }
 
+            if (commonSubexpressionElimination) {
+                boolean graphChanged = CommonSubexpressionElimination.run(graph);
+                repeatOptimisations = repeatOptimisations || graphChanged;
+            }
+
             if (constantFolding) {
                 boolean graphChanged = ConstantFolding.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
@@ -112,11 +117,6 @@ public class Optimisation extends Phase {
 
             if (copyPropagation) {
                 boolean graphChanged = CopyPropagation.run(graph);
-                repeatOptimisations = repeatOptimisations || graphChanged;
-            }
-
-            if (commonSubexpressionElimination) {
-                boolean graphChanged = CommonSubexpressionElimination.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
             }
 
