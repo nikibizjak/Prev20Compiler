@@ -67,6 +67,8 @@ public class ReachingDefinitionsAnalysis {
 		for (ControlFlowGraphNode node : graph.nodes) {
 			generates.put(node, ReachingDefinitionsAnalysis.generates(node));
 			kills.put(node, ReachingDefinitionsAnalysis.kills(node, definitions));
+			node.setReachingDefinitionsIn(new HashSet<ControlFlowGraphNode>());
+			node.setReachingDefinitionsOut(new HashSet<ControlFlowGraphNode>());
 		}
 
 		boolean hasChanged = false;
