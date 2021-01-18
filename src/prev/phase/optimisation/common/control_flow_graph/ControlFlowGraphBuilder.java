@@ -106,4 +106,11 @@ public class ControlFlowGraphBuilder {
         return statements;
     }
 
+    public static ControlFlowGraph fromStatements(Vector<ImcStmt> statements) {
+		MemFrame frame = new MemFrame(new MemLabel("graph"), 0, 0L, 0L);
+		LinCodeChunk codeChunk = new LinCodeChunk(frame, statements, null, null);
+		ControlFlowGraph controlFlowGraph = ControlFlowGraphBuilder.build(codeChunk);
+		return controlFlowGraph;
+    }
+
 }

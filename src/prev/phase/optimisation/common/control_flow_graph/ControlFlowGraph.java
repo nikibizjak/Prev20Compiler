@@ -3,6 +3,7 @@ package prev.phase.optimisation.common.control_flow_graph;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.Vector;
 import prev.data.lin.*;
 
 public class ControlFlowGraph {
@@ -38,20 +39,40 @@ public class ControlFlowGraph {
     public void insertBefore(ControlFlowGraphNode node, ControlFlowGraphNode prepend) {
         // Insert `prepend` node before `node` node
         
+        // If we are trying to insert item into an empty graph, do it. 
+        if (this.nodes.size() <= 0) {
+            this.nodes.add(prepend);
+            return;
+        }
+
+        boolean insertingBeforeInitialNode = node.equals(this.initialNode());
+        Vector<ControlFlowGraphNode> nodesCopy = null;
+        if (insertingBeforeInitialNode) {
+            nodesCopy = new Vector<ControlFlowGraphNode>(this.nodes);
+        }
+        
         // Add edges from all predecessors of `node` to `prepend`
-        for (ControlFlowGraphNode predecessor : ((Set<ControlFlowGraphNode>) node.getPredecessors())) {
+        for (ControlFlowGraphNode predecessor : node.getPredecessors()) {
             predecessor.successors.remove(node);
             node.predecessors.remove(predecessor);
             this.addEdge(predecessor, prepend);
         }
 
         // Connect prepend -> node
-        this.addEdge(prepend, node); 
+        this.addEdge(prepend, node);
+
+        if (insertingBeforeInitialNode) {
+            if (nodesCopy != null) {
+                // We have inserted item before the first node in graph.
+                nodesCopy.insertElementAt(prepend, 0);
+                this.nodes = new LinkedHashSet<ControlFlowGraphNode>(nodesCopy);
+            }
+        }
     }
 
     public void insertAfter(ControlFlowGraphNode node, ControlFlowGraphNode append) {
         // Insert `append` node after `node` node
-        for (ControlFlowGraphNode successor : ((Set<ControlFlowGraphNode>) node.getSuccessors())) {
+        for (ControlFlowGraphNode successor : node.getSuccessors()) {
             node.successors.remove(successor);
             successor.predecessors.remove(node);
             this.addEdge(append, successor);
@@ -96,6 +117,12 @@ public class ControlFlowGraph {
             if (!alreadyPrinted.contains(successor))
                 print(successor, alreadyPrinted);
         }
+    }
+
+    public ControlFlowGraphNode initialNode() {
+        if (this.nodes.size() <= 0)
+            return null;
+        return this.nodes.iterator().next();
     }
 
 }

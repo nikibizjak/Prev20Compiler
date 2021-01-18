@@ -20,13 +20,18 @@ public class LoopFinder {
         return loopFinder.computeLoopNestingTree(graph);
     }
 
+    public static void computeDominators(ControlFlowGraph graph) {
+        LoopFinder loopFinder = new LoopFinder();
+        loopFinder.dominators(graph);
+    }
+
     private LoopNode computeLoopNestingTree(ControlFlowGraph graph) {
         // First, compute all dominators of all nodes in graph
-        this.computeDominators(graph);
+        this.dominators(graph);
 
         // Then, use immediate dominator theorem to find immediate dominators
         // for all nodes in graph
-        computeImmediateDominators(graph);
+        this.computeImmediateDominators(graph);
 
         // Then, find all natural loops in graph and construct a loop-nest tree
         LoopNode loopNestingTree = findLoops(graph);
@@ -34,7 +39,7 @@ public class LoopFinder {
         return loopNestingTree;
     }
 
-    private void computeDominators(ControlFlowGraph graph) {
+    private void dominators(ControlFlowGraph graph) {
         Iterator<ControlFlowGraphNode> iterator = graph.nodes.iterator();
         ControlFlowGraphNode initialNode = iterator.next();
 

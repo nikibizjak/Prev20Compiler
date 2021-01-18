@@ -23,6 +23,10 @@ public class ControlFlowGraphNode {
     private HashSet<ControlFlowGraphNode> reachingDefinitionsIn = new HashSet<ControlFlowGraphNode>();
     private HashSet<ControlFlowGraphNode> reachingDefinitionsOut = new HashSet<ControlFlowGraphNode>();
 
+    /** Sets for available expressions analysis */
+    private HashSet<ImcExpr> availableExpressionsIn = new HashSet<ImcExpr>();
+    private HashSet<ImcExpr> availableExpressionsOut = new HashSet<ImcExpr>();
+
     /** Dominators */
     private HashSet<ControlFlowGraphNode> dominators = new HashSet<ControlFlowGraphNode>();
     ControlFlowGraphNode immediateDominator = null;
@@ -121,6 +125,23 @@ public class ControlFlowGraphNode {
 
     public void setReachingDefinitionsOut(HashSet<ControlFlowGraphNode> reachingDefinitionsOut) {
         this.reachingDefinitionsOut = reachingDefinitionsOut;
+    }
+
+    /** Getters and setters for available expressions analysis */
+    public HashSet<ImcExpr> getAvailableExpressionsIn() {
+        return new HashSet<ImcExpr>(this.availableExpressionsIn);
+    }
+
+    public void setAvailableExpressionsIn(HashSet<ImcExpr> availableExpressionsIn) {
+        this.availableExpressionsIn = availableExpressionsIn;
+    }
+
+    public HashSet<ImcExpr> getAvailableExpressionsOut() {
+        return new HashSet<ImcExpr>(this.availableExpressionsOut);
+    }
+
+    public void setAvailableExpressionsOut(HashSet<ImcExpr> availableExpressionsOut) {
+        this.availableExpressionsOut = availableExpressionsOut;
     }
 
     @Override
