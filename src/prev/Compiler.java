@@ -50,6 +50,9 @@ public class Compiler {
 	/* Total number of registers (not including FP, SP and HP) */
 	public static int numberOfRegisters = 64;
 
+	/** Logging level of the compiler. */
+	public static Report.LoggingLevel loggingLevel = Report.DEFAULT_LOGGING_LEVEL;
+
 	/**
 	 * Returns the value of a command line argument.
 	 * 
@@ -109,6 +112,12 @@ public class Compiler {
 					if (args[argc].matches("--xsl=.*")) {
 						if (cmdLine.get("--xsl") == null) {
 							cmdLine.put("--xsl", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--logging-level=.*")) {
+						if (cmdLine.get("--logging-level") == null) {
+							cmdLine.put("--logging-level", args[argc].replaceFirst("^[^=]*=", ""));
 							continue;
 						}
 					}
@@ -184,6 +193,13 @@ public class Compiler {
 			}
 			if (cmdLine.get("--target-phase") == null) {
 				cmdLine.put("--target-phase", phases.replaceFirst("^.*\\|", ""));
+			}
+			if (cmdLine.get("--logging-level") != null) {
+				try {
+					loggingLevel = Report.LoggingLevel.valueOf(cmdLine.get("--logging-level"));
+				} catch (IllegalArgumentException exception) {
+					Report.warning("Invalid logging level, using " + loggingLevel);
+				}
 			}
 
 			String numberOfRegistersData = Compiler.cmdLineArgValue("--num-regs");

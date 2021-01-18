@@ -1,9 +1,69 @@
 package prev.common.report;
 
+import prev.Compiler;
+
 /**
  * Reporting.
  */
 public class Report {
+
+	public static enum LoggingLevel {
+
+		DEBUG(0),
+		INFO(1),
+		WARNING(2);
+
+		private final int value;
+		LoggingLevel(final int value) {
+            this.value = value;
+		}
+		public int getValue() {
+			return this.value;
+		}
+	}
+
+	public static final LoggingLevel DEFAULT_LOGGING_LEVEL = LoggingLevel.INFO;
+
+	/** Counter of debug messages printed out. */
+	private static int numOfDebugs = 0;
+
+	/**
+	 * Returns the number of debug messages printed out.
+	 * 
+	 * @return The number of debug messages printed out.
+	 */
+	public static int numOfDebugs() {
+		return numOfDebugs;
+	}
+
+	/**
+	 * Prints out a debug message.
+	 * 
+	 * @param message The debug message to be printed.
+	 */
+	public static void debug(String message) {
+		numOfDebugs++;
+		if (Compiler.loggingLevel.getValue() > LoggingLevel.DEBUG.getValue())
+			return;
+		System.out.print("?> ");
+		System.out.println(message);
+	}
+
+	/**
+	 * Prints out an debug message relating to the specified part of the
+	 * source file.
+	 * 
+	 * @param location Location the debug message is related to.
+	 * @param message  The debug message to be printed.
+	 */
+	public static void debug(Locatable location, String message) {
+		numOfDebugs++;
+		if (Compiler.loggingLevel.getValue() > LoggingLevel.DEBUG.getValue())
+			return;
+		System.out.print("?> ");
+		System.out.print("[" + location.location() + "] ");
+		System.out.println(message);
+	}
 
 	/** Counter of information messages printed out. */
 	private static int numOfInfos = 0;
@@ -24,6 +84,8 @@ public class Report {
 	 */
 	public static void info(String message) {
 		numOfInfos++;
+		if (Compiler.loggingLevel.getValue() > LoggingLevel.INFO.getValue())
+			return;
 		System.out.print(":-) ");
 		System.out.println(message);
 	}
@@ -37,6 +99,8 @@ public class Report {
 	 */
 	public static void info(Locatable location, String message) {
 		numOfInfos++;
+		if (Compiler.loggingLevel.getValue() > LoggingLevel.INFO.getValue())
+			return;
 		System.out.print(":-) ");
 		System.out.print("[" + location.location() + "] ");
 		System.out.println(message);
@@ -61,6 +125,8 @@ public class Report {
 	 */
 	public static void warning(String message) {
 		numOfWarnings++;
+		if (Compiler.loggingLevel.getValue() > LoggingLevel.WARNING.getValue())
+			return;
 		System.err.print(":-o ");
 		System.err.println(message);
 	}
@@ -73,6 +139,8 @@ public class Report {
 	 */
 	public static void warning(Locatable location, String message) {
 		numOfWarnings++;
+		if (Compiler.loggingLevel.getValue() > LoggingLevel.WARNING.getValue())
+			return;
 		System.err.print(":-o ");
 		System.err.print("[" + location.location() + "] ");
 		System.err.println(message);
