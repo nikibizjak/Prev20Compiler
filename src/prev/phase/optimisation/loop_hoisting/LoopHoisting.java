@@ -1,32 +1,19 @@
 package prev.phase.optimisation.loop_hoisting;
 
-import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraphNode;
-import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraph;
+import prev.phase.optimisation.common.control_flow_graph.*;
 import prev.phase.optimisation.common.dominators.LoopFinder;
 import prev.phase.optimisation.common.dominators.LoopNode;
 import prev.phase.optimisation.common.liveness_analysis.LivenessAnalysis;
 import prev.data.imc.code.expr.*;
 import prev.data.imc.code.stmt.*;
 import prev.data.mem.MemLabel;
+import prev.data.mem.*;
 
 import java.util.*;
 
-public class LoopHoister {
+public class LoopHoisting {
 
-    public static void print(ControlFlowGraphNode node, HashSet<ControlFlowGraphNode> alreadyPrinted) {
-        // System.out.println(node + ", in: " + node.getLiveIn() + ", out: " + node.getLiveOut());
-        // System.out.println(node + ", dominators: " + node.getImmediateDominator());
-        System.out.println(node);
-        alreadyPrinted.add(node);
-        for (ControlFlowGraphNode successor : ((Set<ControlFlowGraphNode>) node.getSuccessors())) {
-            if (!alreadyPrinted.contains(successor))
-                print(successor, alreadyPrinted);
-        }
-    }
-
-    public static void run(ControlFlowGraph graph) {       
-        // print(graph.nodes.iterator().next(), new HashSet<ControlFlowGraphNode>());
-        
+    public static boolean run(ControlFlowGraph graph) {         
         // First, compute loop nesting tree (containing all loops in current
         // program). The first level of nestingTree is a full program.
         LoopNode nestingTree = LoopFinder.findAllLoops(graph);
@@ -46,6 +33,8 @@ public class LoopHoister {
             // Hoist statements out of the loop
             hoist(graph, loop);
         }
+
+        return false;
     }
 
     private static void addPreheader(ControlFlowGraph graph, LoopNode loop) {
@@ -77,7 +66,39 @@ public class LoopHoister {
         //   2. all the definitions of a_i that reach d are outside the loop or
         //   3. only one definition of a_i reaches d, and that definition is loop-invariant
 
-        return false;
+        if (!(statement instanceof ImcMOVE))
+            return false;
+        
+        ImcMOVE move = (ImcMOVE) statement;
+        if (!(move.src instanceof ImcBINOP))
+            return false;
+        
+        ImcBINOP binaryOperation = (ImcBINOP) move.src;
+
+        // TODO: Write better checks for loop invariance
+
+        HashSet<ImcExpr> subexpressions = new HashSet<ImcExpr>();
+        subexpressions.add(binaryOperation.fstExpr);
+        subexpressions.add(binaryOperation.sndExpr);
+
+        boolean isLoopInvariant = true;
+        for (ImcExpr subexpression : subexpressions) {
+            // Check for condition 1: all subexpressions are constant
+            if (subexpression instanceof ImcCONST) {
+                // a_i is const, continue
+                continue;
+            } else if (subexpression instanceof ImcTEMP) {
+                // Check for condition 2: all the definitions of a_i that reach
+                // d are outside the loop
+
+                // Check for condition 3: only one definition of a_i reaches d,
+                // and that definition is loop-invariant
+            } else {
+                return false;
+            }
+        }
+
+        return isLoopInvariant;
     }
 
     /** Whether or not, the statement is of form t <- a + b */
@@ -133,7 +154,9 @@ public class LoopHoister {
             hoistingCandidates.add(node);
             alreadyDefined.addAll(node.getDefines());
         }
+
         System.out.println("Hoisting candidates: " + hoistingCandidates);
+        System.out.println();
 
         System.out.println("Finding loop exits");
         // Find loop exits. Loop exit is a ControlFlowGraphNode which can jump
@@ -187,8 +210,12 @@ public class LoopHoister {
         System.out.println("Invalid hoisting candidates: " + invalidHoistingCandidates);
         hoistingCandidates.removeAll(invalidHoistingCandidates);
 
+        System.out.println("HOISTING CANDIDATES:");
+        System.out.println(hoistingCandidates);
+
         System.out.println("LOOP BEFORE:");
-        print(loop.preheaderStart, new HashSet<ControlFlowGraphNode>());
+        graph.print();
+        // print(loop.preheaderStart, new HashSet<ControlFlowGraphNode>());
         System.out.println();
 
         // HOIST CANDIDATES OUT OF THE LOOP
@@ -200,7 +227,8 @@ public class LoopHoister {
         }
 
         System.out.println("LOOP AFTER");
-        print(loop.preheaderStart, new HashSet<ControlFlowGraphNode>());
+        // print(loop.preheaderStart, new HashSet<ControlFlowGraphNode>());
+        graph.print();
         System.out.println();
     }
 

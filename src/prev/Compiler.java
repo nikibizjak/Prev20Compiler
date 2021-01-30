@@ -25,7 +25,6 @@ import prev.phase.memory.Memory;
 import prev.phase.optimisation.Optimisation;
 import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraph;
 import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraphBuilder;
-import prev.phase.optimisation.loop_hoisting.LoopHoister;
 import prev.phase.regall.RegAll;
 import prev.phase.seman.AddrResolver;
 import prev.phase.seman.NameResolver;

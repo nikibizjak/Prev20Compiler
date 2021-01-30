@@ -79,6 +79,7 @@ public class Optimisation extends Phase {
         boolean copyPropagation = getFlagValue("--copy-propagation");
         boolean commonSubexpressionElimination = getFlagValue("--common-subexpression-elimination");
         boolean deadCodeElimination = getFlagValue("--dead-code-elimination");
+        boolean loopHoisting = getFlagValue("--loop-hoisting");
 
         Report.debug(String.format("Optimising frame %s", graph.codeChunk.frame.label.name));
 
@@ -137,6 +138,13 @@ public class Optimisation extends Phase {
                 boolean graphChanged = DeadCodeElimination.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Dead code elimination ended");
+            }
+
+            if (loopHoisting) {
+                Report.debug("Loop invariant code motion started");
+                boolean graphChanged = LoopHoisting.run(graph);
+                repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Loop invariant code motion ended");
             }
 
             currentIteration += 1;
