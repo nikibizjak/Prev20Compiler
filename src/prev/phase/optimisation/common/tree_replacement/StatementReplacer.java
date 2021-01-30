@@ -29,9 +29,13 @@ public class StatementReplacer implements ImcVisitor<ImcStmt, Replacement> {
     }
 
     public ImcStmt visit(ImcMOVE imcMove, Replacement replacement) {
-        // ImcExpr newDestination = imcMove.dst.accept(new ExpressionReplacer(), replacement);
+        ImcExpr destination = null;
+        if (replacement.replaceInMoveDestination)
+            destination = imcMove.dst.accept(new ExpressionReplacer(), replacement);
+        else
+            destination = imcMove.dst;
         ImcExpr newSource = imcMove.src.accept(new ExpressionReplacer(), replacement);
-        return new ImcMOVE(imcMove.dst, newSource);
+        return new ImcMOVE(destination, newSource);
     }
 
     public ImcStmt visit(ImcSTMTS imcStmts, Replacement replacement) {
