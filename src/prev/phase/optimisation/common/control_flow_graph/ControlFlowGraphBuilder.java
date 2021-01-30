@@ -21,33 +21,29 @@ public class ControlFlowGraphBuilder {
         // and CJUMP statements as connections in control-flow graph.
         HashMap<MemLabel, ControlFlowGraphNode> labels = new HashMap<MemLabel, ControlFlowGraphNode>();
         for (ImcStmt statement : codeChunk.stmts()) {
+
+            ControlFlowGraphNode node = new ControlFlowGraphNode(statement);
+
             if (statement instanceof ImcLABEL) {
                 MemLabel label = ((ImcLABEL) statement).label;
-                labels.put(label, new ControlFlowGraphNode(statement));
+                labels.put(label, node);
             }
+
+            // Add node to graph
+            controlFlowGraph.addNode(node);
         }
 
         Vector<ImcStmt> statements = codeChunk.stmts();
 
         // Initialize the first statement and the first node
         ImcStmt previousStatement = statements.get(0);
-        ControlFlowGraphNode previousNode;
-        if (previousStatement instanceof ImcLABEL && labels.containsKey(((ImcLABEL) previousStatement).label)) {
-            previousNode = labels.get(((ImcLABEL) previousStatement).label);
-        } else {
-            previousNode = new ControlFlowGraphNode(previousStatement);
-        }
+        ControlFlowGraphNode previousNode = controlFlowGraph.nodes.get(0);
 
         for (int i = 1; i < statements.size(); i++) {
             ImcStmt currentStatement = statements.get(i);
 
             // First, construct a new node for this statement
-            ControlFlowGraphNode currentNode;
-            if (currentStatement instanceof ImcLABEL && labels.containsKey(((ImcLABEL) currentStatement).label)) {
-                currentNode = labels.get(((ImcLABEL) currentStatement).label);
-            } else {
-                currentNode = new ControlFlowGraphNode(currentStatement);
-            }
+            ControlFlowGraphNode currentNode = controlFlowGraph.nodes.get(i);
 
             // The only statements after linearization that can alter the flow
             // of program are the JUMP and CJUMP statements. Any other statement
@@ -90,19 +86,11 @@ public class ControlFlowGraphBuilder {
         return controlFlowGraph;
     }
 
-    private static void toStatementList(ControlFlowGraphNode currentNode, HashSet<ControlFlowGraphNode> alreadyVisited, Vector<ImcStmt> statements) {
-        statements.add(currentNode.statement);
-        alreadyVisited.add(currentNode);
-        for (ControlFlowGraphNode successor : ((LinkedHashSet<ControlFlowGraphNode>) currentNode.getSuccessors())) {
-            if (!alreadyVisited.contains(successor))
-                toStatementList(successor, alreadyVisited, statements);
-        }
-    }
-
     public static Vector<ImcStmt> toStatements(ControlFlowGraph graph) {
         Vector<ImcStmt> statements = new Vector<ImcStmt>();
-        ControlFlowGraphNode initialNode = graph.nodes.iterator().next();
-        toStatementList(initialNode, new HashSet<ControlFlowGraphNode>(), statements);
+        for (ControlFlowGraphNode node : graph.nodes) {
+            statements.add(node.statement);
+        }
         return statements;
     }
 
