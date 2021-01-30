@@ -2,10 +2,10 @@ package prev.phase.optimisation.common.dominators;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 
 import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraph;
 import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraphNode;
@@ -43,7 +43,7 @@ public class LoopFinder {
         Iterator<ControlFlowGraphNode> iterator = graph.nodes.iterator();
         ControlFlowGraphNode initialNode = iterator.next();
 
-        LinkedHashSet<ControlFlowGraphNode> graphNodes = (LinkedHashSet<ControlFlowGraphNode>) graph.nodes;
+        Vector<ControlFlowGraphNode> graphNodes = graph.nodes;
 
         for (ControlFlowGraphNode node : graphNodes){
             HashSet<ControlFlowGraphNode> initialDominators = new HashSet<ControlFlowGraphNode>();
@@ -89,7 +89,7 @@ public class LoopFinder {
     }
 
     private void computeImmediateDominators(ControlFlowGraph graph) {
-        LinkedHashSet<ControlFlowGraphNode> graphNodes = (LinkedHashSet<ControlFlowGraphNode>) graph.nodes;
+        Vector<ControlFlowGraphNode> graphNodes = graph.nodes;
         for (ControlFlowGraphNode node : graphNodes) {
 
             // idiom(n) dominates n
@@ -134,7 +134,7 @@ public class LoopFinder {
         // The *natural loop* of a back ednge n -> h, where h dominates n, is
         // the set of nodes x such that h dominates x and there is a path from x
         // to not containing h. The header of this loop will be h.
-        LinkedHashSet<ControlFlowGraphNode> graphNodes = (LinkedHashSet<ControlFlowGraphNode>) graph.nodes;
+        Vector<ControlFlowGraphNode> graphNodes = graph.nodes;
         for (ControlFlowGraphNode node : graphNodes) {
             if (node == initialNode)
                 continue;
