@@ -10,7 +10,7 @@ import prev.data.mem.*;
 import prev.data.lin.*;
 
 /**
- * Reaching definitions analysis.
+ * Available expressions analysis.
  */
 public class AvailableExpressionsAnalysis {
 
@@ -27,14 +27,9 @@ public class AvailableExpressionsAnalysis {
 		//       generates { MEM(...) } - kills(node)
 		ImcStmt statement = node.statement;
 		HashSet<ImcExpr> generates = new HashSet<ImcExpr>();
-		if (statement instanceof ImcMOVE && ((ImcMOVE) statement).dst instanceof ImcTEMP) {
-			if (((ImcMOVE) statement).src instanceof ImcBINOP) {
-				generates.add(((ImcMOVE) statement).src);
-				generates.removeAll(kills(node, allExpressions));
-			} else if (((ImcMOVE) statement).src instanceof ImcMEM) {
-				generates.add(((ImcMOVE) statement).src);
-				generates.removeAll(kills(node, allExpressions));
-			}
+		if (statement instanceof ImcMOVE) {
+			generates = SubexpressionFinder.getAllSubexpressions(((ImcMOVE) statement).src);
+			generates.removeAll(kills(node, allExpressions));
 		}
 		return generates;
 	}
@@ -100,7 +95,7 @@ public class AvailableExpressionsAnalysis {
 					kills.addAll(containingTemporary(allExpressions, (ImcTEMP) moveStatement.dst));
 					return kills;
 				}
-				throw new Report.Error("Invalid expression " + moveStatement + ", expected: t <- b + c, t <- M[b] or t <- f(a_1, ..., a_n)");
+				// throw new Report.Error("Invalid expression " + moveStatement + ", expected: t <- b + c, t <- M[b] or t <- f(a_1, ..., a_n)");
 			} else if (moveStatement.dst instanceof ImcMEM) {
 				if (moveStatement.src instanceof ImcTEMP) {
 					kills.addAll(containingMemoryOperations(allExpressions));
@@ -111,7 +106,7 @@ public class AvailableExpressionsAnalysis {
 				}
 				throw new Report.Error("Invalid expression " + moveStatement + ", expected: M[a] <- b");
 			}
-			throw new Report.Error("Invalid expression " + moveStatement + ", expected: t <- b + c, t <- M[b], M[a] <- b or t <- f(a_1, ..., a_n)");
+			// throw new Report.Error("Invalid expression " + moveStatement + ", expected: t <- b + c, t <- M[b], M[a] <- b or t <- f(a_1, ..., a_n)");
 		} else if (statement instanceof ImcESTMT) {
 			// Function call CALL kills expressions of the form M[x]
 			ImcESTMT expressionStatement = (ImcESTMT) statement;
@@ -121,7 +116,8 @@ public class AvailableExpressionsAnalysis {
 			}
 			throw new Report.Error("Invalid expression: " + expressionStatement + ", expected: f(a_1, ..., a_n)");
 		}
-		throw new Report.Error("Invalid expression: " + statement);
+		// throw new Report.Error("Invalid expression: " + statement);
+		return kills;
 	}
 
 	private static HashSet<ImcExpr> getAllExpressions(ControlFlowGraph graph) {
@@ -132,11 +128,9 @@ public class AvailableExpressionsAnalysis {
 				continue;
 			
 			ImcMOVE moveStatement = (ImcMOVE) statement;
-			
-			if (!(moveStatement.src instanceof ImcBINOP) && !(moveStatement.src instanceof ImcMEM) && !(moveStatement.src instanceof ImcUNOP))
-				continue;
-			
-			allExpressions.add(moveStatement.src);
+
+			HashSet<ImcExpr> statementSubexpressions = SubexpressionFinder.getAllSubexpressions(statement);
+			allExpressions.addAll(statementSubexpressions);
 		}
 		return allExpressions;
 	}
