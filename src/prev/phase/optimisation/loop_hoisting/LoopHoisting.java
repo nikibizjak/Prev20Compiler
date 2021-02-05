@@ -14,17 +14,23 @@ import java.util.*;
 
 public class LoopHoisting {
 
+    /** Loop nesting tree that should only be computed once */
+    private static LoopNode nestingTree = null;
+
     public static boolean run(ControlFlowGraph graph) {
         boolean hasGraphChanged = false;
 
-        // First, compute loop nesting tree (containing all loops in current
-        // program). The first level of nestingTree is a full program.
-        LoopNode nestingTree = LoopFinder.findAllLoops(graph);
+        // If loop nesting tree has not yet been computed, compute it now. The
+        // nesting tree contains all loops in the current program. The first
+        // level of nestingTree is a full program.
+        if (nestingTree == null) {
+            nestingTree = LoopFinder.findAllLoops(graph);
 
-        // Add preheaders to all loops (excluding the first level of nesting).
-        for (LoopNode loop : nestingTree.subLoops) {
-            // Add preheader nodes to all loops
-            addPreheader(graph, loop);
+            // Only add preheaders to all loops ONCE. Exclude the first level of
+            // nesting (the whole program).
+            for (LoopNode loop : nestingTree.subLoops) {
+                addPreheader(graph, loop);
+            }
         }
 
         // Don't optimize the first level of nesting tree.
@@ -43,6 +49,7 @@ public class LoopHoisting {
 
         // Then, add preheader to loop
         ControlFlowGraphNode header = loop.header;
+        System.out.println("Loop header: " + loop.header);
 
         // Construct a new control-flow graph node that will be inserted BEFORE
         // loop header
@@ -89,7 +96,6 @@ public class LoopHoisting {
         for (ImcExpr subexpression : subexpressions) {
             // Check for condition 1: is subexpression constant
             if (subexpression instanceof ImcCONST) {
-                Report.debug("Subexpression " + subexpression + " is constant!");
                 continue;
             }
 
@@ -108,7 +114,6 @@ public class LoopHoisting {
                 }
             }
             if (allDefinitionsOutsideLoop) {
-                Report.debug("Subexpression " + subexpression + " has all reaching definitions (" + subexpressionDefinitions + ") outside of the loop");
                 continue;
             }
             
@@ -117,7 +122,6 @@ public class LoopHoisting {
             if (subexpressionDefinitions.size() == 1) {
                 ControlFlowGraphNode onlyReachingDefinition = subexpressionDefinitions.iterator().next();
                 if (!onlyReachingDefinition.equals(node) && isLoopInvariant(loop, onlyReachingDefinition)) {
-                    Report.debug("Subexpression " + subexpression + " has only one reaching definition (" + onlyReachingDefinition + ") and the definition is loop invariant");
                     continue;
                 }
             }
@@ -153,9 +157,9 @@ public class LoopHoisting {
 
         // Construct a list of all possible TEMPs that can be moved out from the
         // loop. The TEMPS that won't match all three conditions will be removed.
-        HashSet<ControlFlowGraphNode> hoistingCandidates = new HashSet<ControlFlowGraphNode>();
+        LinkedHashSet<ControlFlowGraphNode> hoistingCandidates = new LinkedHashSet<ControlFlowGraphNode>();
         HashSet<ImcTEMP> alreadyDefined = new HashSet<ImcTEMP>();
-        for (ControlFlowGraphNode node : loop.loopItems) {
+        for (ControlFlowGraphNode node : loop.getLoopItems()) {
 
             if (!isBinaryOperation(node.statement))
                 continue;
@@ -231,6 +235,11 @@ public class LoopHoisting {
             Report.debug("Hoisting node: " + node);
             graph.removeNode(node);
             graph.insertAfter(loop.preheaderEnd, node);
+
+            // Because we are now only computing loops once, we must also remove
+            // nodes from the loop.
+            loop.loopItems.remove(node);
+            
             loop.preheaderEnd = node;
             hasGraphChanged = true;
         }

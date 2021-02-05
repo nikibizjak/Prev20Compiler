@@ -3,18 +3,18 @@ package prev.phase.optimisation.common.dominators;
 import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraphNode;
 import prev.data.imc.code.stmt.*;
 import prev.data.imc.code.expr.*;
-import java.util.Set;
 import java.util.LinkedHashSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.LinkedList;
 
 public class LoopNode {
 
     public LoopNode parent;
     
     public ControlFlowGraphNode header;
-    public Set<ControlFlowGraphNode> loopItems = new LinkedHashSet<ControlFlowGraphNode>();
+    public LinkedHashSet<ControlFlowGraphNode> loopItems = new LinkedHashSet<ControlFlowGraphNode>();
     public List<LoopNode> subLoops = new ArrayList<LoopNode>();
 
     /** Loop preheader information (first and last control-flow graph nodes) */
@@ -67,6 +67,14 @@ public class LoopNode {
         nodes.add(this.header);
         nodes.addAll(this.loopItems);
         return nodes;
+    }
+
+    public LinkedList<ControlFlowGraphNode> getLoopItems() {
+        LinkedList<ControlFlowGraphNode> loopItems = new LinkedList<ControlFlowGraphNode>();
+        for (ControlFlowGraphNode node : this.loopItems) {
+            loopItems.addFirst(node);
+        }
+        return loopItems;
     }
 
     @Override
