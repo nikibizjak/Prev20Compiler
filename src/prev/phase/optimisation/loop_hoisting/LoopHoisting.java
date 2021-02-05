@@ -1,9 +1,10 @@
 package prev.phase.optimisation.loop_hoisting;
 
 import prev.phase.optimisation.common.control_flow_graph.*;
-import prev.phase.optimisation.common.dominators.LoopFinder;
-import prev.phase.optimisation.common.dominators.LoopNode;
-import prev.phase.optimisation.common.liveness_analysis.LivenessAnalysis;
+import prev.phase.optimisation.common.dominators.*;
+import prev.phase.optimisation.common.liveness_analysis.*;
+import prev.phase.optimisation.common.reaching_definitions.*;
+import prev.common.report.*;
 import prev.data.imc.code.expr.*;
 import prev.data.imc.code.stmt.*;
 import prev.data.mem.MemLabel;
@@ -13,7 +14,9 @@ import java.util.*;
 
 public class LoopHoisting {
 
-    public static boolean run(ControlFlowGraph graph) {         
+    public static boolean run(ControlFlowGraph graph) {
+        boolean hasGraphChanged = false;
+
         // First, compute loop nesting tree (containing all loops in current
         // program). The first level of nestingTree is a full program.
         LoopNode nestingTree = LoopFinder.findAllLoops(graph);
@@ -24,17 +27,13 @@ public class LoopHoisting {
             addPreheader(graph, loop);
         }
 
-        // Then, perform liveness analysis on control-flow graph (this will also
-        // make sure that our preheader live-out is computed)
-        LivenessAnalysis.analysis(graph);
-
         // Don't optimize the first level of nesting tree.
         for (LoopNode loop : nestingTree.subLoops) {
             // Hoist statements out of the loop
-            hoist(graph, loop);
+            hasGraphChanged = hasGraphChanged || hoist(graph, loop);
         }
 
-        return false;
+        return hasGraphChanged;
     }
 
     private static void addPreheader(ControlFlowGraph graph, LoopNode loop) {
@@ -59,46 +58,72 @@ public class LoopHoisting {
     }
 
     /** Whether or not, the statement is loop invariant */
-    private static boolean isLoopInvariant(ImcStmt statement) {
+    private static boolean isLoopInvariant(LoopNode loop, ControlFlowGraphNode node) {
         // The definition d: t <- a_1 + a_2 is loop invariant within loop L if,
         // for each operand a_i:
         //   1. a_i is a constant or
         //   2. all the definitions of a_i that reach d are outside the loop or
         //   3. only one definition of a_i reaches d, and that definition is loop-invariant
+        if (!(node.statement instanceof ImcMOVE))
+            return false;
+        
+        ImcMOVE move = (ImcMOVE) node.statement;
+        
+        HashSet<ImcExpr> subexpressions = new HashSet<ImcExpr>();
+        
+        if (move.src instanceof ImcBINOP) {
+            ImcBINOP binaryOperation = (ImcBINOP) move.src;
+            subexpressions.add(binaryOperation.fstExpr);
+            subexpressions.add(binaryOperation.sndExpr);
+        } else if (move.src instanceof ImcUNOP) {
+            ImcUNOP unaryOperation = (ImcUNOP) move.src;
+            subexpressions.add(unaryOperation.subExpr);
+        } else {
+            return false;
+        }        
 
-        if (!(statement instanceof ImcMOVE))
-            return false;
-        
-        ImcMOVE move = (ImcMOVE) statement;
-        if (!(move.src instanceof ImcBINOP))
-            return false;
-        
-        ImcBINOP binaryOperation = (ImcBINOP) move.src;
+        HashSet<ControlFlowGraphNode> reachingDefinitions = node.getReachingDefinitionsIn();
+        HashSet<ControlFlowGraphNode> loopNodes = loop.getLoopNodes();
 
         // TODO: Write better checks for loop invariance
-
-        HashSet<ImcExpr> subexpressions = new HashSet<ImcExpr>();
-        subexpressions.add(binaryOperation.fstExpr);
-        subexpressions.add(binaryOperation.sndExpr);
-
-        boolean isLoopInvariant = true;
         for (ImcExpr subexpression : subexpressions) {
-            // Check for condition 1: all subexpressions are constant
+            // Check for condition 1: is subexpression constant
             if (subexpression instanceof ImcCONST) {
-                // a_i is const, continue
+                Report.debug("Subexpression " + subexpression + " is constant!");
                 continue;
-            } else if (subexpression instanceof ImcTEMP) {
-                // Check for condition 2: all the definitions of a_i that reach
-                // d are outside the loop
-
-                // Check for condition 3: only one definition of a_i reaches d,
-                // and that definition is loop-invariant
-            } else {
-                return false;
             }
-        }
 
-        return isLoopInvariant;
+            // Check for condition 2: all the definitions of a_i that reach
+            // d are outside the loop
+            boolean allDefinitionsOutsideLoop = true;
+            HashSet<ControlFlowGraphNode> subexpressionDefinitions = new HashSet<ControlFlowGraphNode>();
+            for (ControlFlowGraphNode definition : reachingDefinitions) {
+                if (!definition.getDefines().contains(subexpression))
+                    continue;
+                subexpressionDefinitions.add(definition);
+                // One definition of a_i that reaches d is inside the loop
+                if (loopNodes.contains(definition)) {
+                    allDefinitionsOutsideLoop = false;
+                    break;
+                }
+            }
+            if (allDefinitionsOutsideLoop) {
+                Report.debug("Subexpression " + subexpression + " has all reaching definitions (" + subexpressionDefinitions + ") outside of the loop");
+                continue;
+            }
+            
+            // Check for condition 3: only one definition of a_i reaches d,
+            // and that definition is loop-invariant
+            if (subexpressionDefinitions.size() == 1) {
+                ControlFlowGraphNode onlyReachingDefinition = subexpressionDefinitions.iterator().next();
+                if (!onlyReachingDefinition.equals(node) && isLoopInvariant(loop, onlyReachingDefinition)) {
+                    Report.debug("Subexpression " + subexpression + " has only one reaching definition (" + onlyReachingDefinition + ") and the definition is loop invariant");
+                    continue;
+                }
+            }
+            return false;
+        }
+        return true;
     }
 
     /** Whether or not, the statement is of form t <- a + b */
@@ -108,10 +133,17 @@ public class LoopHoisting {
             && ((ImcMOVE) statement).src instanceof ImcBINOP;
     }
 
-    private static void hoist(ControlFlowGraph graph, LoopNode loop) {
+    private static boolean hoist(ControlFlowGraph graph, LoopNode loop) {
+        boolean hasGraphChanged = false;
+
         // Visit all subloops first
         for (LoopNode subLoop : loop.subLoops)
-            hoist(graph, subLoop);
+            hasGraphChanged = hasGraphChanged || hoist(graph, subLoop);
+        
+        // Then, perform liveness analysis on control-flow graph (this will also
+        // make sure that our preheader live-out is computed)
+        LivenessAnalysis.analysis(graph);
+        ReachingDefinitionsAnalysis.run(graph);
 
         // Definition d: t <- a + b can be hoisted to the end of the loop
         // preheader if:
@@ -123,14 +155,13 @@ public class LoopHoisting {
         // loop. The TEMPS that won't match all three conditions will be removed.
         HashSet<ControlFlowGraphNode> hoistingCandidates = new HashSet<ControlFlowGraphNode>();
         HashSet<ImcTEMP> alreadyDefined = new HashSet<ImcTEMP>();
-        System.out.println("STEP 1");
         for (ControlFlowGraphNode node : loop.loopItems) {
 
             if (!isBinaryOperation(node.statement))
                 continue;
 
             // Skip all statements that are not loop invariant            
-            if (!isLoopInvariant(node.statement))
+            if (!isLoopInvariant(loop, node))
                 continue;
 
             HashSet<ImcTEMP> definitions = node.getDefines();
@@ -145,7 +176,6 @@ public class LoopHoisting {
             if (definitions.size() > 0) {
                 // One of the temporaries is redefined, this is not a good
                 // candidate for hoisting.
-                System.out.println("There is more than one one definition of " + definitions + " in the loop");
                 alreadyDefined.addAll(node.getDefines());
                 continue;
             }
@@ -155,10 +185,6 @@ public class LoopHoisting {
             alreadyDefined.addAll(node.getDefines());
         }
 
-        System.out.println("Hoisting candidates: " + hoistingCandidates);
-        System.out.println();
-
-        System.out.println("Finding loop exits");
         // Find loop exits. Loop exit is a ControlFlowGraphNode which can jump
         // to a ControlFlowGraphNode that is not in loop.loopItems
         HashSet<ControlFlowGraphNode> loopExits = new HashSet<ControlFlowGraphNode>();
@@ -168,9 +194,7 @@ public class LoopHoisting {
             if (successors.size() > 0)
                 loopExits.add(node);
         }
-        System.out.println("Loop exits: " + loopExits);
 
-        System.out.println("STEP 2");
         HashSet<ControlFlowGraphNode> invalidHoistingCandidates = new HashSet<ControlFlowGraphNode>();
         for (ControlFlowGraphNode node : hoistingCandidates) {
             // 1. d dominates all loop exits at which t is live-out
@@ -182,54 +206,36 @@ public class LoopHoisting {
                     if (!loopExit.getDominators().contains(node)) {
                         // d does not dominate loop exit at which t is live out,
                         // DONT HOIST
-                        System.out.println(
-                                node + " does not dominate loop exit at which " + definedTemporary + " is live out");
                         invalidHoistingCandidates.add(node);
                         continue;
                     }
                 }
             }
         }
-        System.out.println("Invalid hoisting candidates: " + invalidHoistingCandidates);
         hoistingCandidates.removeAll(invalidHoistingCandidates);
 
-        System.out.println("STEP 3");
         // 3. and t is not live-out of the loop preheader
         invalidHoistingCandidates.clear();
         HashSet<ImcTEMP> preheaderLiveOut = loop.preheaderEnd.getLiveOut();
-        System.out.println("Preheader live out: " + preheaderLiveOut);
         for (ControlFlowGraphNode node : hoistingCandidates) {
             ImcTEMP definedTemporary = node.getDefines().iterator().next();
-            System.out.println(node + " defines " + definedTemporary);
             if (preheaderLiveOut.contains(definedTemporary)) {
-                System.out.println(definedTemporary + " is live-out of the loop preheader");
                 // t is live out of the loop preheader
                 invalidHoistingCandidates.add(node);
             }
         }
-        System.out.println("Invalid hoisting candidates: " + invalidHoistingCandidates);
         hoistingCandidates.removeAll(invalidHoistingCandidates);
-
-        System.out.println("HOISTING CANDIDATES:");
-        System.out.println(hoistingCandidates);
-
-        System.out.println("LOOP BEFORE:");
-        graph.print();
-        // print(loop.preheaderStart, new HashSet<ControlFlowGraphNode>());
-        System.out.println();
 
         // HOIST CANDIDATES OUT OF THE LOOP
         for (ControlFlowGraphNode node : hoistingCandidates) {
-            System.out.println("HOISTING: " + node);
+            Report.debug("Hoisting node: " + node);
             graph.removeNode(node);
             graph.insertAfter(loop.preheaderEnd, node);
             loop.preheaderEnd = node;
+            hasGraphChanged = true;
         }
 
-        System.out.println("LOOP AFTER");
-        // print(loop.preheaderStart, new HashSet<ControlFlowGraphNode>());
-        graph.print();
-        System.out.println();
+        return hasGraphChanged;
     }
 
 }
