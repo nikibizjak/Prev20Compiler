@@ -3,7 +3,6 @@ package prev.phase.optimisation.common_subexpression_elimination;
 import prev.phase.optimisation.common.control_flow_graph.*;
 import prev.phase.optimisation.common.available_expressions.*;
 import prev.phase.optimisation.common.liveness_analysis.*;
-import prev.phase.optimisation.common.dominators.*;
 import prev.phase.optimisation.common.tree_replacement.*;
 import prev.data.imc.code.*;
 import prev.data.imc.code.expr.*;
@@ -27,7 +26,6 @@ public class CommonSubexpressionElimination {
         do {
 
             AvailableExpressionsAnalysis.run(graph);
-            LoopFinder.computeDominators(graph);
 
             hasGraphChanged = false;
 
@@ -49,9 +47,6 @@ public class CommonSubexpressionElimination {
 
                 HashSet<ImcExpr> statementSubexpressions = SubexpressionFinder.getAllSubexpressions(moveStatement.src);
                 statementSubexpressions.retainAll(availableExpressionsIn);
-                /*ImcExpr sourceExpression = moveStatement.src;
-                if (!availableExpressionsIn.contains(sourceExpression))
-                    continue;*/
                 if (statementSubexpressions.size() <= 0)
                     continue;
 
@@ -83,7 +78,8 @@ public class CommonSubexpressionElimination {
 
                             // If this node uses the same common subexpression, this is
                             // the first found subexpression, stop finding the next one
-                            if (((ImcMOVE) currentNode.statement).src.equals(sourceExpression)) {
+                            HashSet<ImcExpr> currentSubexpressions = SubexpressionFinder.getAllSubexpressions(((ImcMOVE) currentNode.statement).src);
+                            if (currentSubexpressions.contains(sourceExpression)) {
                                 foundNode = currentNode;
                                 break;
                             }
