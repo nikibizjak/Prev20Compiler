@@ -9,6 +9,7 @@ import prev.data.imc.code.stmt.*;
 import java.util.*;
 import prev.data.mem.*;
 import prev.data.lin.*;
+import prev.common.report.*;
 
 public class DeadCodeElimination { 
 
@@ -36,6 +37,7 @@ public class DeadCodeElimination {
         }
 
         for (ControlFlowGraphNode node : deadCode) {
+            Report.debug("Removing statement " + node.statement);
             graph.removeNode(node);
             hasGraphChanged = true;
         }
