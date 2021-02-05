@@ -14,23 +14,21 @@ import java.util.*;
 
 public class LoopHoisting {
 
-    /** Loop nesting tree that should only be computed once */
-    private static LoopNode nestingTree = null;
+    /** A mapping between loop header and preheader object containing preheader
+     * nodes */
+    private static HashMap<ControlFlowGraphNode, Preheader> preheaders = new HashMap<ControlFlowGraphNode, Preheader>();
 
     public static boolean run(ControlFlowGraph graph) {
         boolean hasGraphChanged = false;
 
-        // If loop nesting tree has not yet been computed, compute it now. The
-        // nesting tree contains all loops in the current program. The first
-        // level of nestingTree is a full program.
-        if (nestingTree == null) {
-            nestingTree = LoopFinder.findAllLoops(graph);
+        // The nesting tree contains all loops in the current program. The
+        // first level of nestingTree is a full program.
+        LoopNode nestingTree = LoopFinder.findAllLoops(graph);
 
-            // Only add preheaders to all loops ONCE. Exclude the first level of
-            // nesting (the whole program).
-            for (LoopNode loop : nestingTree.subLoops) {
-                addPreheader(graph, loop);
-            }
+        // Only add preheaders to all loops ONCE. Exclude the first level of
+        // nesting (the whole program).
+        for (LoopNode loop : nestingTree.subLoops) {
+            addPreheader(graph, loop);
         }
 
         // Don't optimize the first level of nesting tree.
@@ -49,19 +47,26 @@ public class LoopHoisting {
 
         // Then, add preheader to loop
         ControlFlowGraphNode header = loop.header;
-        System.out.println("Loop header: " + loop.header);
 
-        // Construct a new control-flow graph node that will be inserted BEFORE
-        // loop header
-        ControlFlowGraphNode preheader = new ControlFlowGraphNode(new ImcLABEL(new MemLabel("preheader")));
-        loop.preheaderStart = preheader;
-        loop.preheaderEnd = preheader;
+        Preheader preheader = preheaders.get(header);
+        if (preheader == null) {
+            // Preheader does not yet exist. Construct a new one.
 
-        for (ControlFlowGraphNode predecessor : ((Set<ControlFlowGraphNode>) header.getPredecessors())) {
-            if (loop.loopItems.contains(predecessor))
-                continue;
-            graph.insertAfter(predecessor, preheader);
+            // Construct a new control-flow graph node that will be inserted
+            // before loop header.
+            MemLabel preheaderLabel = MemLabel.uniqueFromName("preheader");
+            ControlFlowGraphNode preheaderNode = new ControlFlowGraphNode(new ImcLABEL(preheaderLabel));
+            preheader = new Preheader(graph, preheaderNode, preheaderNode);
+
+            for (ControlFlowGraphNode predecessor : header.getPredecessors()) {
+                if (loop.loopItems.contains(predecessor))
+                    continue;
+                graph.insertAfter(predecessor, preheaderNode);
+            }
         }
+
+        loop.setPreheader(preheader);
+        preheaders.put(header, preheader);
     }
 
     /** Whether or not, the statement is loop invariant */
@@ -87,12 +92,10 @@ public class LoopHoisting {
             subexpressions.add(unaryOperation.subExpr);
         } else {
             return false;
-        }        
+        }
 
         HashSet<ControlFlowGraphNode> reachingDefinitions = node.getReachingDefinitionsIn();
-        HashSet<ControlFlowGraphNode> loopNodes = loop.getLoopNodes();
 
-        // TODO: Write better checks for loop invariance
         for (ImcExpr subexpression : subexpressions) {
             // Check for condition 1: is subexpression constant
             if (subexpression instanceof ImcCONST) {
@@ -108,7 +111,7 @@ public class LoopHoisting {
                     continue;
                 subexpressionDefinitions.add(definition);
                 // One definition of a_i that reaches d is inside the loop
-                if (loopNodes.contains(definition)) {
+                if (loop.containsNode(definition)) {
                     allDefinitionsOutsideLoop = false;
                     break;
                 }
@@ -220,7 +223,7 @@ public class LoopHoisting {
 
         // 3. and t is not live-out of the loop preheader
         invalidHoistingCandidates.clear();
-        HashSet<ImcTEMP> preheaderLiveOut = loop.preheaderEnd.getLiveOut();
+        HashSet<ImcTEMP> preheaderLiveOut = loop.preheader.preheaderEnd.getLiveOut();
         for (ControlFlowGraphNode node : hoistingCandidates) {
             ImcTEMP definedTemporary = node.getDefines().iterator().next();
             if (preheaderLiveOut.contains(definedTemporary)) {
@@ -234,13 +237,7 @@ public class LoopHoisting {
         for (ControlFlowGraphNode node : hoistingCandidates) {
             Report.debug("Hoisting node: " + node);
             graph.removeNode(node);
-            graph.insertAfter(loop.preheaderEnd, node);
-
-            // Because we are now only computing loops once, we must also remove
-            // nodes from the loop.
-            loop.loopItems.remove(node);
-            
-            loop.preheaderEnd = node;
+            loop.preheader.append(node);
             hasGraphChanged = true;
         }
 

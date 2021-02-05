@@ -17,9 +17,7 @@ public class LoopNode {
     public LinkedHashSet<ControlFlowGraphNode> loopItems = new LinkedHashSet<ControlFlowGraphNode>();
     public List<LoopNode> subLoops = new ArrayList<LoopNode>();
 
-    /** Loop preheader information (first and last control-flow graph nodes) */
-    public ControlFlowGraphNode preheaderStart;
-    public ControlFlowGraphNode preheaderEnd;
+    public Preheader preheader;
 
     public LoopNode(ControlFlowGraphNode header) {
         this.header = header;
@@ -54,6 +52,17 @@ public class LoopNode {
         return null;
     }
 
+    public boolean containsNode(ControlFlowGraphNode node) {
+        if (this.loopItems.contains(node) || this.header.equals(node))
+            return true;
+        for (LoopNode subLoop : this.subLoops) {
+            boolean containsNode = subLoop.containsNode(node);
+            if (containsNode)
+                return true;
+        }
+        return false;
+    }
+
     public HashSet<ImcStmt> getLoopStatements() {
         HashSet<ImcStmt> statements = new HashSet<ImcStmt>();
         statements.add(this.header.statement);
@@ -75,6 +84,10 @@ public class LoopNode {
             loopItems.addFirst(node);
         }
         return loopItems;
+    }
+
+    public void setPreheader(Preheader preheader) {
+        this.preheader = preheader;
     }
 
     @Override
