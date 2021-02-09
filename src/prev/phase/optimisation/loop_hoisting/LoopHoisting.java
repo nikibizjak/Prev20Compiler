@@ -40,7 +40,7 @@ public class LoopHoisting {
         return hasGraphChanged;
     }
 
-    private static void addPreheader(ControlFlowGraph graph, LoopNode loop) {
+    public static void addPreheader(ControlFlowGraph graph, LoopNode loop) {
         // Visit all subloops first
         for (LoopNode subLoop : loop.subLoops)
             addPreheader(graph, subLoop);
