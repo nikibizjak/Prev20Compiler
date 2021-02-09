@@ -174,6 +174,12 @@ public class Compiler {
 							continue;
 						}
 					}
+					if (args[argc].matches("--induction-variable-elimination=.*")) {
+						if (cmdLine.get("--induction-variable-elimination") == null) {
+							cmdLine.put("--induction-variable-elimination", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
 					Report.warning("Command line argument '" + args[argc] + "' ignored.");
 				} else {
 					// Source file name.

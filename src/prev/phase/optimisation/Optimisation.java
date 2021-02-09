@@ -15,6 +15,7 @@ import prev.phase.optimisation.copy_propagation.*;
 import prev.phase.optimisation.dead_code_elimination.*;
 import prev.phase.optimisation.common_subexpression_elimination.*;
 import prev.phase.optimisation.loop_hoisting.*;
+import prev.phase.optimisation.induction_variable_elimination.*;
 import java.util.*;
 
 /**
@@ -80,6 +81,7 @@ public class Optimisation extends Phase {
         boolean commonSubexpressionElimination = getFlagValue("--common-subexpression-elimination");
         boolean deadCodeElimination = getFlagValue("--dead-code-elimination");
         boolean loopHoisting = getFlagValue("--loop-hoisting");
+        boolean inductionVariableElimination = getFlagValue("--induction-variable-elimination");
 
         Report.debug(String.format("Optimising frame %s", graph.codeChunk.frame.label.name));
 
@@ -145,6 +147,13 @@ public class Optimisation extends Phase {
                 boolean graphChanged = LoopHoisting.run(graph);
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Loop invariant code motion ended");
+            }
+
+            if (inductionVariableElimination) {
+                Report.debug("Induction variable elimination started");
+                boolean graphChanged = InductionVariableElimination.run(graph);
+                repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Induction variable elimination ended");
             }
 
             currentIteration += 1;
