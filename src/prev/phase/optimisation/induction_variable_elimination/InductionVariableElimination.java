@@ -156,7 +156,35 @@ public class InductionVariableElimination {
 
     }
 
+    private static ImcExpr getIncrementExpression(ControlFlowGraphNode node, ImcTEMP temporary) {
+        ImcStmt statement = node.statement;
+        if (!(statement instanceof ImcMOVE))
+            return null;
+        
+        ImcMOVE moveStatement = (ImcMOVE) statement;
+        if (!(moveStatement.src instanceof ImcBINOP))
+            return null;
+        
+        ImcBINOP binaryOperation = (ImcBINOP) moveStatement.src;
+        if (!(binaryOperation.oper == ImcBINOP.Oper.ADD || binaryOperation.oper == ImcBINOP.Oper.SUB))
+            return null;
+        
+        // Other expression should be loop-invariant expression.
+        ImcExpr otherExpression = binaryOperation.fstExpr;
+        if (otherExpression.equals(temporary)) {
+            otherExpression = binaryOperation.sndExpr;
+        }
+        if (otherExpression.equals(temporary)) {
+            return null;
+        }
+        return otherExpression;
+    }
+
     private static InductionVariable getBasicInductionVariable(ImcTEMP temporary, HashSet<ControlFlowGraphNode> definitions, ControlFlowGraph graph, LoopNode loop) {
+        // The variable i is a basic induction variable in a loop L with header
+        // node h if the only definitions of i within L are of the form i <- i +
+        // c or i <- i - c, where c is loop invariant.
+
         for (ControlFlowGraphNode definitionNode : definitions) {
             ImcStmt statement = definitionNode.statement;
             if (!(statement instanceof ImcMOVE))
@@ -170,34 +198,33 @@ public class InductionVariableElimination {
             if (!(binaryOperation.oper == ImcBINOP.Oper.ADD || binaryOperation.oper == ImcBINOP.Oper.SUB))
                 return null;
             
-            if (binaryOperation.fstExpr.equals(temporary)) {
-                // Check if second expression is loop-invariant
-                if (isLoopInvariant(loop, binaryOperation.sndExpr)) {
-                    ImcExpr expression = binaryOperation.sndExpr;
-                    if (binaryOperation.oper == ImcBINOP.Oper.SUB)
-                        expression = new ImcUNOP(ImcUNOP.Oper.NEG, expression);
-                    InductionVariable inductionVariable = new BasicInductionVariable(temporary, expression);
-                    for (ControlFlowGraphNode definition : definitions)
-                        inductionVariable.addDefinition(definition);
-                    return inductionVariable;
-                }
-                return null;
-            } else if (binaryOperation.sndExpr.equals(temporary)) {
-                // Check if first expression is loop-invariant
-                if (isLoopInvariant(loop, binaryOperation.fstExpr)) {
-                    ImcExpr expression = binaryOperation.fstExpr;
-                    if (binaryOperation.oper == ImcBINOP.Oper.SUB)
-                        expression = new ImcUNOP(ImcUNOP.Oper.NEG, expression);
-                    InductionVariable inductionVariable = new BasicInductionVariable(temporary, expression);
-                    for (ControlFlowGraphNode definition : definitions)
-                        inductionVariable.addDefinition(definition);
-                    return inductionVariable;
-                }
+            // Other expression should be loop-invariant expression.
+            ImcExpr otherExpression = binaryOperation.fstExpr;
+            if (otherExpression.equals(temporary)) {
+                otherExpression = binaryOperation.sndExpr;
+            }
+            if (otherExpression.equals(temporary)) {
                 return null;
             }
-            return null;
+
+            // If other expression is not loop-invariant, this is not an
+            // induction variable.
+            if (!isLoopInvariant(loop, otherExpression)) {
+                return null;
+            }
+
+            // Here, we can assume that the statement is of the form
+            // temporary <- temporary oper otherExpression where oper is either
+            // ADD or SUB and otherExpression is loop-invariant expression.
+
+            // If every definition passes all conditions, then this temporary is
+            // a basic induction variable.
         }
-        return null;
+
+        InductionVariable inductionVariable = new BasicInductionVariable(temporary);
+        for (ControlFlowGraphNode definition : definitions)
+            inductionVariable.addDefinition(definition);
+        return inductionVariable;
     }
 
     private static HashMap<ImcTEMP, InductionVariable> detectInductionVariables(ControlFlowGraph graph, LoopNode loop) {
@@ -247,8 +274,8 @@ public class InductionVariableElimination {
                 HashSet<ControlFlowGraphNode> inductionVariableAssignments = definitions.get(inductionVariable.inductionVariable);
                 inductionVariableAssignments.retainAll(loopNodes);
                 for (ControlFlowGraphNode inductionVariableAssignment : inductionVariableAssignments) {
-                    ImcExpr additionTerm = ((BasicInductionVariable) inductionVariables.get(inductionVariable.inductionVariable)).incrementExpression;
-                    ImcMOVE move = new ImcMOVE(newInductionTemporary, new ImcBINOP(ImcBINOP.Oper.ADD, newInductionTemporary, new ImcBINOP(ImcBINOP.Oper.MUL, additionTerm, inductionVariable.multiplicationTerm)));
+                    ImcExpr incrementExpression = getIncrementExpression(inductionVariableAssignment, inductionVariable.inductionVariable);
+                    ImcMOVE move = new ImcMOVE(newInductionTemporary, new ImcBINOP(ImcBINOP.Oper.ADD, newInductionTemporary, new ImcBINOP(ImcBINOP.Oper.MUL, incrementExpression, inductionVariable.multiplicationTerm)));
                     ControlFlowGraphNode moveNode = new ControlFlowGraphNode(move);
                     graph.insertAfter(inductionVariableAssignment, moveNode);                    
                 }

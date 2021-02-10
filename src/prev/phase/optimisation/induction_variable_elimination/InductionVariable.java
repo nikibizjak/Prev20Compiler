@@ -57,17 +57,12 @@ public abstract class InductionVariable {
  */
 class BasicInductionVariable extends InductionVariable {
 
-    /** Loop-invariant expression used to update value of basic induction
-     * variable each loop iteration. */
-    public ImcExpr incrementExpression;
-
     /** Control flow graph nodes inside a loop where this induction variable is
      * defined. Basic induction variables can have multiple definitions. */
     private Vector<ControlFlowGraphNode> definitions;
 
-    public BasicInductionVariable(ImcTEMP inductionVariable, ImcExpr incrementExpression) {
+    public BasicInductionVariable(ImcTEMP inductionVariable) {
         super(inductionVariable, new ImcCONST(0), new ImcCONST(1));
-        this.incrementExpression = incrementExpression;
         this.definitions = new Vector<ControlFlowGraphNode>();
     }
 
