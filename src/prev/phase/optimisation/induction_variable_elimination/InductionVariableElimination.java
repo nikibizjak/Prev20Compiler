@@ -45,14 +45,31 @@ public class InductionVariableElimination {
         return expression instanceof ImcCONST;
     }
 
-    private static InductionVariable getDerivedInductionVariable(ImcTEMP temporary, HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> allDefinitions, HashSet<ControlFlowGraphNode> definitions, ControlFlowGraph graph, LoopNode loop) {
+    private static InductionVariable getDerivedInductionVariable(ImcTEMP temporary, HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> allDefinitions, ControlFlowGraph graph, LoopNode loop) {
+        // The variable k is a *derived induction variable* in loop L if:
+        //   1. There is only one definition of k within L, of the form k <- j *
+        //      c or k <- j + d, where j is an induction variable and c, d are
+        //      loop invariant and
+        //   2. if j is a derived induction variable in the family of i, then:
+        //       * the only definition of j that reaches k is the one in the
+        //         loop and
+        //       * there is no definition of i on any path between the
+        //         definition of j and the definition of k
+
+        HashSet<ControlFlowGraphNode> definitions = allDefinitions.get(temporary);
+        HashSet<ControlFlowGraphNode> loopNodes = loop.getLoopNodes();
+        definitions.retainAll(loopNodes);
+        
         // There is only one definition of k within loop
         if (definitions.size() != 1)
             return null;
         
         // Definition is of the form k <- j * c or k <- j + d.
         // There is another possibility: k <- j - d = k <- j + (-d))
+
+        // Get node in which this derived induction variable was defined
         ControlFlowGraphNode definitionNode = definitions.iterator().next();
+
         ImcStmt statement = definitionNode.statement;
         if (!(statement instanceof ImcMOVE))
             return null;
@@ -69,59 +86,74 @@ public class InductionVariableElimination {
         // invariant expression.
         InductionVariable inductionVariable = null;
         ImcExpr loopInvariantExpression = null;
+        
+        // The first expression should always be the loop-invariant expression.
+        // The second one should be a induction variable. If the order is not
+        // correct, swap them.
+        ImcExpr firstExpression = binaryOperation.fstExpr;
+        ImcExpr secondExpression = binaryOperation.sndExpr;
 
-        if (isLoopInvariant(loop, binaryOperation.fstExpr)) {
-            // Second expression must be an induction variable
-            if (!(binaryOperation.sndExpr instanceof ImcTEMP))
+        if (!isLoopInvariant(loop, firstExpression)) {
+            if (!isLoopInvariant(loop, secondExpression)) {
+                // The first or the second expression is not loop-invariant.
+                // This can't be a derived induction variable.
                 return null;
-            
-            ImcTEMP possibleInductionTemporary = (ImcTEMP) binaryOperation.sndExpr;
-            inductionVariable = getBasicInductionVariable(possibleInductionTemporary, allDefinitions.get(possibleInductionTemporary), graph, loop);
-            if (inductionVariable == null) {
-                // temporary could also be a derived induction variable
-                // if (!...)
-                //     return null;
             }
-            loopInvariantExpression = binaryOperation.fstExpr;
-            if (loopInvariantExpression == null || inductionVariable == null)
-                return null;
-            
-            if (binaryOperation.oper == ImcBINOP.Oper.ADD) {
-                return new DerivedInductionVariable(inductionVariable.inductionVariable, new ImcBINOP(ImcBINOP.Oper.ADD, inductionVariable.additionTerm, loopInvariantExpression), inductionVariable.multiplicationTerm);
-            } else if (binaryOperation.oper == ImcBINOP.Oper.SUB) {
-                return new DerivedInductionVariable(inductionVariable.inductionVariable, new ImcBINOP(ImcBINOP.Oper.SUB, inductionVariable.additionTerm, loopInvariantExpression), inductionVariable.multiplicationTerm);
-            } else if (binaryOperation.oper == ImcBINOP.Oper.MUL) {
-                return new DerivedInductionVariable(inductionVariable.inductionVariable, new ImcBINOP(ImcBINOP.Oper.MUL, inductionVariable.additionTerm, loopInvariantExpression), new ImcBINOP(ImcBINOP.Oper.MUL, inductionVariable.multiplicationTerm, loopInvariantExpression));
-            }
-            return null;            
-        } else if (isLoopInvariant(loop, binaryOperation.sndExpr)) {
-            // First expression must be an induction variable
-            if (!(binaryOperation.fstExpr instanceof ImcTEMP))
-                return null;
-
-            inductionVariable = getBasicInductionVariable(temporary, definitions, graph, loop);
-            if (inductionVariable == null) {
-                // temporary could also be a derived induction variable
-            }
-            return null;
-        } else {
-            // There is no loop invariant expression so this isn't a derived
-            // induction variable.
-            return null;
+            // First expression is not loop-invariant, but the second one is.
+            // Swap them.
+            ImcExpr temporaryExpression = firstExpression;
+            firstExpression = secondExpression;
+            secondExpression = temporaryExpression;
         }
 
-        // Check if first variable is induction variable
-        // Check if second variable is induction variable
+        // The firstExpression is now loop-invariant. Check if second expression
+        // is loop-invariant.
+        loopInvariantExpression = firstExpression;
+        if (!(secondExpression instanceof ImcTEMP))
+            return null;
         
-        /*if (binaryOperation.oper == ImcBINOP.Oper.ADD) {
+        // Check if this temporary is actually induction variable.
+        ImcTEMP possibleInductionTemporary = (ImcTEMP) secondExpression;
+        // Check if possibleInductionTemporary is a basic induction variable. If
+        // yes, then this is a derived induction variable without any other
+        // checks.
+        inductionVariable = getBasicInductionVariable(possibleInductionTemporary, allDefinitions.get(possibleInductionTemporary), graph, loop);
+        if (inductionVariable == null) {
+            // Check if possibleInductionTemporary is a derived induction
+            // variable. If it is not, then this is not an derived induction
+            // variable.
+            inductionVariable = getDerivedInductionVariable(possibleInductionTemporary, allDefinitions, graph, loop);
+            if (inductionVariable == null)
+                return null;
+            
+            // MORE CHECKS
 
+        }
+
+        // Here we can assume that loopInvariantExpression and inductionVariable
+        // are non-null. Construct a new derived induction variable in the
+        // family of inductionVariable.inductionVariable with modified
+        // multiplication and addition terms.
+
+        // Assuming j is characterized by (i, a, b), then k is described by:
+        //   * k: (i, a * c, b * c) if k <- j * c
+        //   * k: (i, a + d, b) if k <- j + d
+        //   * k: (i, a - d, b) if k <- j - d
+        DerivedInductionVariable derivedInductionVariable = null;
+        if (binaryOperation.oper == ImcBINOP.Oper.ADD) {
+            derivedInductionVariable = new DerivedInductionVariable(inductionVariable.inductionVariable, new ImcBINOP(ImcBINOP.Oper.ADD, inductionVariable.additionTerm, loopInvariantExpression), inductionVariable.multiplicationTerm);
         } else if (binaryOperation.oper == ImcBINOP.Oper.SUB) {
-
+            derivedInductionVariable = new DerivedInductionVariable(inductionVariable.inductionVariable, new ImcBINOP(ImcBINOP.Oper.SUB, inductionVariable.additionTerm, loopInvariantExpression), inductionVariable.multiplicationTerm);
         } else if (binaryOperation.oper == ImcBINOP.Oper.MUL) {
-
+            derivedInductionVariable = new DerivedInductionVariable(inductionVariable.inductionVariable, new ImcBINOP(ImcBINOP.Oper.MUL, inductionVariable.additionTerm, loopInvariantExpression), new ImcBINOP(ImcBINOP.Oper.MUL, inductionVariable.multiplicationTerm, loopInvariantExpression));
         }
-        
-        return null;*/
+
+        if (derivedInductionVariable != null) {
+            derivedInductionVariable.addDefinition(definitionNode);
+        }
+
+        return derivedInductionVariable; 
+
     }
 
     private static InductionVariable getBasicInductionVariable(ImcTEMP temporary, HashSet<ControlFlowGraphNode> definitions, ControlFlowGraph graph, LoopNode loop) {
@@ -144,7 +176,10 @@ public class InductionVariableElimination {
                     ImcExpr expression = binaryOperation.sndExpr;
                     if (binaryOperation.oper == ImcBINOP.Oper.SUB)
                         expression = new ImcUNOP(ImcUNOP.Oper.NEG, expression);
-                    return new BasicInductionVariable(temporary, expression);
+                    InductionVariable inductionVariable = new BasicInductionVariable(temporary, expression);
+                    for (ControlFlowGraphNode definition : definitions)
+                        inductionVariable.addDefinition(definition);
+                    return inductionVariable;
                 }
                 return null;
             } else if (binaryOperation.sndExpr.equals(temporary)) {
@@ -153,7 +188,10 @@ public class InductionVariableElimination {
                     ImcExpr expression = binaryOperation.fstExpr;
                     if (binaryOperation.oper == ImcBINOP.Oper.SUB)
                         expression = new ImcUNOP(ImcUNOP.Oper.NEG, expression);
-                    return new BasicInductionVariable(temporary, expression);   
+                    InductionVariable inductionVariable = new BasicInductionVariable(temporary, expression);
+                    for (ControlFlowGraphNode definition : definitions)
+                        inductionVariable.addDefinition(definition);
+                    return inductionVariable;
                 }
                 return null;
             }
@@ -182,7 +220,7 @@ public class InductionVariableElimination {
                 Report.debug(String.format("  * %s is basic induction variable: %s", temporary, basicInductionVariable));
                 inductionVariables.put(temporary, basicInductionVariable);
             } else {
-                InductionVariable derivedInductionVariable = getDerivedInductionVariable(temporary, definitions, temporaryDefinedIn, graph, loop);
+                InductionVariable derivedInductionVariable = getDerivedInductionVariable(temporary, definitions, graph, loop);
                 if (derivedInductionVariable != null) {
                     Report.debug(String.format("  * %s is derived induction variable: %s", temporary, derivedInductionVariable));
                     inductionVariables.put(temporary, derivedInductionVariable);
