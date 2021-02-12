@@ -70,7 +70,7 @@ public class LoopHoisting {
     }
 
     /** Whether or not, the statement is loop invariant */
-    private static boolean isLoopInvariant(LoopNode loop, ControlFlowGraphNode node) {
+    public static boolean isLoopInvariant(LoopNode loop, ControlFlowGraphNode node) {
         // The definition d: t <- a_1 + a_2 is loop invariant within loop L if,
         // for each operand a_i:
         //   1. a_i is a constant or
@@ -124,7 +124,7 @@ public class LoopHoisting {
             // and that definition is loop-invariant
             if (subexpressionDefinitions.size() == 1) {
                 ControlFlowGraphNode onlyReachingDefinition = subexpressionDefinitions.iterator().next();
-                if (!onlyReachingDefinition.equals(node) && isLoopInvariant(loop, onlyReachingDefinition)) {
+                if (!onlyReachingDefinition.statement.equals(node.statement) && isLoopInvariant(loop, onlyReachingDefinition)) {
                     continue;
                 }
             }

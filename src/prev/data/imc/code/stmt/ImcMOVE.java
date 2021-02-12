@@ -46,4 +46,25 @@ public class ImcMOVE extends ImcStmt {
 		return "MOVE(" + dst.toString() + "," + src.toString() + ")";
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcMOVE)) {
+			return false;
+		}
+		ImcMOVE imcMOVE = (ImcMOVE) o;
+		return dst.equals(imcMOVE.dst) && src.equals(imcMOVE.src);
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = result * prime * dst.hashCode();
+		result = result * prime * src.hashCode();
+		return result;
+	}
+
+
 }

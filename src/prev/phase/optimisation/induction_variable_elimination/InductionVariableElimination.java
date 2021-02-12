@@ -17,6 +17,10 @@ public class InductionVariableElimination {
 
         boolean hasGraphChanged = false;
 
+        // TODO: Perform reaching definitions analysis
+        LivenessAnalysis.analysis(graph);
+        ReachingDefinitionsAnalysis.run(graph);
+
         // The nesting tree contains all loops in the current program. The
         // first level of nestingTree is a full program.
         LoopNode nestingTree = LoopFinder.findAllLoops(graph);
@@ -40,9 +44,45 @@ public class InductionVariableElimination {
         return hasGraphChanged;
     }
 
-    private static boolean isLoopInvariant(LoopNode loop, ImcExpr expression) {
-        // TODO: Actually check for loop invariance here
-        return expression instanceof ImcCONST;
+    /** Check whether expression is loop invariant. */
+    private static boolean isLoopInvariant(LoopNode loop, ControlFlowGraphNode node, ImcExpr expression) {
+        // expression is a constant
+        if (expression instanceof ImcCONST) {
+            return true;
+        }
+        
+        HashSet<ControlFlowGraphNode> reachingDefinitionsIn = node.getReachingDefinitionsIn();
+        // All the definitions of expression that reach node are outside the
+        // loop
+        boolean allDefinitionsOutsideLoop = true;
+        HashSet<ControlFlowGraphNode> expressionDefinitions = new HashSet<ControlFlowGraphNode>();
+        for (ControlFlowGraphNode definition : reachingDefinitionsIn) {
+            if (!definition.getDefines().contains(expression))
+                continue;
+            expressionDefinitions.add(definition);
+            // One definition of a_i that reaches d is inside the loop
+            if (loop.containsNode(definition)) {
+                allDefinitionsOutsideLoop = false;
+                break;
+            }
+        }
+        if (allDefinitionsOutsideLoop) {
+            return true;
+        }
+
+        // only one definition of a_i reaches d, and that definition is
+        // loop-invariant
+        if (expressionDefinitions.size() == 1) {
+            ControlFlowGraphNode onlyReachingDefinition = expressionDefinitions.iterator().next();
+            // The only reaching definition is this statement.
+            if (onlyReachingDefinition.statement.equals(node.statement))
+                return false;
+            
+            if (LoopHoisting.isLoopInvariant(loop, onlyReachingDefinition))
+                return true;
+        }
+        
+        return false;
     }
 
     private static InductionVariable getDerivedInductionVariable(ImcTEMP temporary, HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> allDefinitions, ControlFlowGraph graph, LoopNode loop) {
@@ -93,8 +133,8 @@ public class InductionVariableElimination {
         ImcExpr firstExpression = binaryOperation.fstExpr;
         ImcExpr secondExpression = binaryOperation.sndExpr;
 
-        if (!isLoopInvariant(loop, firstExpression)) {
-            if (!isLoopInvariant(loop, secondExpression)) {
+        if (!isLoopInvariant(loop, definitionNode, firstExpression)) {
+            if (!isLoopInvariant(loop, definitionNode, secondExpression)) {
                 // The first or the second expression is not loop-invariant.
                 // This can't be a derived induction variable.
                 return null;
@@ -209,7 +249,7 @@ public class InductionVariableElimination {
 
             // If other expression is not loop-invariant, this is not an
             // induction variable.
-            if (!isLoopInvariant(loop, otherExpression)) {
+            if (!isLoopInvariant(loop, definitionNode, otherExpression)) {
                 return null;
             }
 
