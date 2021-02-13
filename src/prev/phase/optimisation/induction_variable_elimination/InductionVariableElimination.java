@@ -17,10 +17,6 @@ public class InductionVariableElimination {
 
         boolean hasGraphChanged = false;
 
-        // TODO: Perform reaching definitions analysis
-        LivenessAnalysis.analysis(graph);
-        ReachingDefinitionsAnalysis.run(graph);
-
         // The nesting tree contains all loops in the current program. The
         // first level of nestingTree is a full program.
         LoopNode nestingTree = LoopFinder.findAllLoops(graph);
@@ -96,7 +92,7 @@ public class InductionVariableElimination {
         //       * there is no definition of i on any path between the
         //         definition of j and the definition of k
 
-        HashSet<ControlFlowGraphNode> definitions = allDefinitions.get(temporary);
+        HashSet<ControlFlowGraphNode> definitions = new HashSet<ControlFlowGraphNode>(allDefinitions.get(temporary));
         HashSet<ControlFlowGraphNode> loopNodes = loop.getLoopNodes();
         definitions.retainAll(loopNodes);
         
@@ -157,7 +153,9 @@ public class InductionVariableElimination {
         // Check if possibleInductionTemporary is a basic induction variable. If
         // yes, then this is a derived induction variable without any other
         // checks.
-        inductionVariable = getBasicInductionVariable(possibleInductionTemporary, allDefinitions.get(possibleInductionTemporary), graph, loop);
+        HashSet<ControlFlowGraphNode> basicInductionVariableDefinitions = new HashSet<ControlFlowGraphNode>(allDefinitions.get(possibleInductionTemporary));
+        basicInductionVariableDefinitions.retainAll(loopNodes);
+        inductionVariable = getBasicInductionVariable(possibleInductionTemporary, basicInductionVariableDefinitions, graph, loop);
         if (inductionVariable == null) {
             // Check if possibleInductionTemporary is a derived induction
             // variable. If it is not, then this is not an derived induction
@@ -166,7 +164,41 @@ public class InductionVariableElimination {
             if (inductionVariable == null)
                 return null;
             
-            // MORE CHECKS
+            // Induction variable inductionVariable is a derived induction
+            // variable in the family of inductionVariable.inductionVariable and
+            // is directly derived from possibleInductionTemporary.
+            
+            // i - inductionVariable.inductionVariable
+            // j - possibleInductionTemporary
+            // k - temporary
+            
+            // Check if the only definition of possibleInductionTemporary that
+            // reaches temporary is the one in the loop.
+            HashSet<ControlFlowGraphNode> reachingDefinitionsIn = definitionNode.getReachingDefinitionsIn();
+            // Only leave reaching definitions where possibleInductionTemporary
+            // is defined.
+            reachingDefinitionsIn.retainAll(allDefinitions.get(possibleInductionTemporary));
+            // reachingDefinitionsIn - all definitions of j that reach k
+
+            int numberOfDefinitions = reachingDefinitionsIn.size();
+            
+            reachingDefinitionsIn.retainAll(loopNodes);
+            // reachingDefinitionsIn - all definitions of j that reach k that
+            // are in the loop.
+            int numberOfDefinitionsOutsideLoop = numberOfDefinitions - reachingDefinitionsIn.size();
+            
+            // There must be no reaching definitions from outside the loop.
+            if (numberOfDefinitionsOutsideLoop > 0)
+                return null;
+
+            // There must only be one definition inside the loop.
+            if (reachingDefinitionsIn.size() != 1)
+                return null;
+
+            // Check if there is no definition of
+            // inductionVariable.inductionVariable on any path between the
+            // definition of possibleInductionTemporary and the definition of
+            // temporary.
 
         }
 
@@ -271,11 +303,14 @@ public class InductionVariableElimination {
         HashMap<ImcTEMP, InductionVariable> inductionVariables = new HashMap<ImcTEMP, InductionVariable>();
         HashSet<ControlFlowGraphNode> loopNodes = loop.getLoopNodes();
 
+        LivenessAnalysis.analysis(graph);
+        ReachingDefinitionsAnalysis.run(graph);
         // Find all defined variables and ControlFlowGraphNodes where those
         // variables are defined.
         HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> definitions = ReachingDefinitionsAnalysis.definitions(graph);
+
         for (ImcTEMP temporary: definitions.keySet()) {
-            HashSet<ControlFlowGraphNode> temporaryDefinedIn = definitions.get(temporary);
+            HashSet<ControlFlowGraphNode> temporaryDefinedIn = new HashSet<ControlFlowGraphNode>(definitions.get(temporary));
             // Remove all definitions outside the current loop
             temporaryDefinedIn.retainAll(loopNodes);
 
@@ -311,7 +346,7 @@ public class InductionVariableElimination {
                 ImcTEMP newInductionTemporary = new ImcTEMP(new MemTemp());
 
                 // After each assignment to variable i, make an assignment j' <- j' + c * b
-                HashSet<ControlFlowGraphNode> inductionVariableAssignments = definitions.get(inductionVariable.inductionVariable);
+                HashSet<ControlFlowGraphNode> inductionVariableAssignments = new HashSet<ControlFlowGraphNode>(definitions.get(inductionVariable.inductionVariable));
                 inductionVariableAssignments.retainAll(loopNodes);
                 for (ControlFlowGraphNode inductionVariableAssignment : inductionVariableAssignments) {
                     ImcExpr incrementExpression = getIncrementExpression(inductionVariableAssignment, inductionVariable.inductionVariable);
@@ -321,7 +356,7 @@ public class InductionVariableElimination {
                 }
 
                 // Replace assignment j <- ... with j <- j' (there is only one)
-                HashSet<ControlFlowGraphNode> derivedInductionVariableAssignments = definitions.get(temporary);
+                HashSet<ControlFlowGraphNode> derivedInductionVariableAssignments = new HashSet<ControlFlowGraphNode>(definitions.get(temporary));
                 derivedInductionVariableAssignments.retainAll(loopNodes);
                 ControlFlowGraphNode derivedInductionVariableAssignment = derivedInductionVariableAssignments.iterator().next();
                 derivedInductionVariableAssignment.statement = new ImcMOVE(temporary, newInductionTemporary);
