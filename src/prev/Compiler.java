@@ -19,6 +19,8 @@ import prev.phase.imclin.ImcLin;
 import prev.phase.imclin.Interpreter;
 import prev.phase.lexan.LexAn;
 import prev.phase.livean.LiveAn;
+import prev.phase.memory.VariableMemoryAnalysis;
+import prev.phase.memory.VariableMemoryAnalysisStaticLink;
 import prev.phase.memory.MemEvaluator;
 import prev.phase.memory.MemLogger;
 import prev.phase.memory.Memory;
@@ -264,6 +266,9 @@ public class Compiler {
 
 				// Memory layout.
 				try (Memory memory = new Memory()) {
+					Abstr.tree.accept(new VariableMemoryAnalysis(), null);
+					Abstr.tree.accept(new VariableMemoryAnalysisStaticLink(), VariableMemoryAnalysisStaticLink.first());
+					Abstr.tree.accept(new VariableMemoryAnalysisStaticLink(), VariableMemoryAnalysisStaticLink.second());
 					Abstr.tree.accept(new MemEvaluator(), null);
 					Memory.frames.lock();
 					Memory.accesses.lock();

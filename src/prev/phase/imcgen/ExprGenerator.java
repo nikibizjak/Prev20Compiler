@@ -82,6 +82,13 @@ public class ExprGenerator extends AstFullVisitor<ImcExpr, Stack<MemFrame>> {
 		// When visiting name expression, first find where it was declared
 		AstDecl declaration = SemAn.declaredAt.get(nameExpression);
 
+		if (declaration instanceof AstMemDecl) {
+			MemAccess access = Memory.accesses.get((AstMemDecl) declaration);
+			if (access instanceof TemporaryAccess) {
+				return new ImcTEMP(((TemporaryAccess) access).temporary);
+			}
+		}
+
 		// The declaration can either be record component, variable or function
 		// parameter, each of the definitions can be visited and should return
 		// the address where it is declared. Here we want to access the value at

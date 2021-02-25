@@ -48,6 +48,17 @@ public class MemLogger extends AstNullVisitor<Object, Object> {
 		MemAccess access = Memory.accesses.get(parDecl);
 		if (access != null)
 			access.log(logger);
+		
+		Boolean inRegister = Memory.isRegisterRepresentable.get(parDecl);
+		if (inRegister != null) {
+			if (inRegister.booleanValue()) {
+				logger.begElement("in_register");
+				logger.endElement();
+			} else {
+				logger.begElement("in_memory");
+				logger.endElement();
+			}
+		}
 		return null;
 	}
 
@@ -56,6 +67,17 @@ public class MemLogger extends AstNullVisitor<Object, Object> {
 		MemAccess access = Memory.accesses.get(varDecl);
 		if (access != null)
 			access.log(logger);
+		
+		Boolean inRegister = Memory.isRegisterRepresentable.get(varDecl);
+		if (inRegister != null) {
+			if (inRegister.booleanValue()) {
+				logger.begElement("in_register");
+				logger.endElement();
+			} else {
+				logger.begElement("in_memory");
+				logger.endElement();
+			}
+		}
 		return null;
 	}
 

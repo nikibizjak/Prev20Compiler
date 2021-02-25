@@ -63,6 +63,9 @@
 	    <xsl:apply-templates select="lvalue"/>
 	    <xsl:apply-templates select="frame"/>
 	    <xsl:apply-templates select="access"/>
+
+	    <xsl:apply-templates select="in_register"/>
+	    <xsl:apply-templates select="in_memory"/>
 	  </table>
 	</td>
       </tr>
@@ -135,6 +138,18 @@
   </tr>
 </xsl:template>
 
+<xsl:template match="in_register">
+  <tr>
+    <td bgcolor="ff432e" style="color: white;">REGISTER</td>
+  </tr>
+</xsl:template>
+
+<xsl:template match="in_memory">
+  <tr>
+    <td bgcolor="ff432e"  style="color: white;">MEMORY</td>
+  </tr>
+</xsl:template>
+
 <xsl:template match="frame">
   <tr>
     <td>
@@ -186,6 +201,9 @@
 	      </xsl:if>
 	      <xsl:if test="@depth!=''">
 		depth=<xsl:value-of select="@depth"/>
+	      </xsl:if>
+		  <xsl:if test="@temporary!=''">
+		temporary=<xsl:value-of select="@temporary"/>
 	      </xsl:if>
 	    </nobr>
 	  </td>

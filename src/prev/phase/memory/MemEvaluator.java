@@ -11,6 +11,7 @@ import prev.data.ast.tree.expr.AstPfxExpr;
 import prev.data.ast.tree.type.AstRecType;
 import prev.data.ast.visitor.AstFullVisitor;
 import prev.data.mem.MemAbsAccess;
+import prev.data.mem.TemporaryAccess;
 import prev.data.mem.MemFrame;
 import prev.data.mem.MemLabel;
 import prev.data.mem.MemRelAccess;
@@ -146,6 +147,12 @@ public class MemEvaluator extends AstFullVisitor<Object, MemEvaluator.Context> {
 		// Memory.accesses attribute and change the current function context
 		// locals size (locsSize variable)
 		FunContext functionContext = (FunContext) context;
+
+		Boolean isRegisterRepresentable = Memory.isRegisterRepresentable.get(variableDeclaration);
+		if (isRegisterRepresentable != null && isRegisterRepresentable.booleanValue()) {
+			Memory.accesses.put(variableDeclaration, new TemporaryAccess());
+			return null;
+		}
 
 		// Compute the offset (local variables have negative offset values)
 		long offset = -functionContext.locsSize - semanticType.size();
