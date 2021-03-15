@@ -48,10 +48,21 @@ public class Optimisation extends Phase {
 
         // Linearize intermediate code
         this.intermediateCodeLinearization();
+
         // If target phase is imclin, no optimisations should be performed on
         // linearized code.
         if (Compiler.cmdLineArgValue("--target-phase").equals("imclin"))
             return;
+        
+        if (Compiler.cmdLineArgValue("--target-phase").equals("interpreter")) {
+            try {
+                Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+                long exitCode = interpreter.run("_main", Compiler.printInterpreterStatistics);
+                System.out.printf("Exit code: %d%n", exitCode);
+            } catch (Exception e) {
+
+            }
+        }
         
         // Execute optimisation on all code chunks
         Vector<LinCodeChunk> optimizedCodeChunks = new Vector<LinCodeChunk>();
