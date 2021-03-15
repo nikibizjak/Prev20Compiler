@@ -81,6 +81,23 @@ public class InductionVariableElimination {
         return false;
     }
 
+    static Stack<ControlFlowGraphNode> connectionPath = new Stack<ControlFlowGraphNode>();
+    static List<Stack<ControlFlowGraphNode>> connectionPaths = new ArrayList<Stack<ControlFlowGraphNode>>();
+    static void findAllPaths(ControlFlowGraphNode node, ControlFlowGraphNode targetNode) {
+        for (ControlFlowGraphNode nextNode : node.getPredecessors()) {
+            if (nextNode.equals(targetNode)) {
+                Stack temp = new Stack<ControlFlowGraphNode>();
+                for (ControlFlowGraphNode node1 : connectionPath)
+                    temp.add(node1);
+                connectionPaths.add(temp);
+            } else if (!connectionPath.contains(nextNode)) {
+                connectionPath.push(nextNode);
+                findAllPaths(nextNode, targetNode);
+                connectionPath.pop();
+            }
+        }
+    }
+
     private static InductionVariable getDerivedInductionVariable(ImcTEMP temporary, HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> allDefinitions, ControlFlowGraph graph, LoopNode loop) {
         // The variable k is a *derived induction variable* in loop L if:
         //   1. There is only one definition of k within L, of the form k <- j *
@@ -199,7 +216,18 @@ public class InductionVariableElimination {
             // inductionVariable.inductionVariable on any path between the
             // definition of possibleInductionTemporary and the definition of
             // temporary.
+            connectionPath.clear();
+            connectionPaths.clear();
+            findAllPaths(definitionNode, reachingDefinitionsIn.iterator().next());
 
+            for (Stack<ControlFlowGraphNode> path : connectionPaths) {
+                while (!path.isEmpty()) {
+                    ControlFlowGraphNode pathNode = path.pop();
+                    if (pathNode.getDefines().contains(inductionVariable.inductionVariable)) {
+                        return null;
+                    }
+                }
+            }
         }
 
         // Here we can assume that loopInvariantExpression and inductionVariable
