@@ -4,9 +4,20 @@
 <xsl:template match="optimisation">
   <html>
     <style>
+	* {
+			margin: 0;
+			padding: 0;
+	  }
+	  body {
+		  font-family: 'Source Code Pro', monospace;
+	  }
+	  .code-chunk {
+		margin: 1em;
+	  }
       table, tr, td {
       text-align: center;
       vertical-align: top;
+	  border-collapse: collapse;
       }
     </style>
     <body>
@@ -24,7 +35,7 @@
 
 <xsl:template match="datachunk">
   <tr>
-    <td bgcolor="FFEE00" style="text-align:left">
+    <td bgcolor="f7f7f7" style="text-align:left">
       <nobr>
 	DATA
 	label=<xsl:value-of select="@label"/>
@@ -38,15 +49,15 @@
 </xsl:template>
 
 <xsl:template match="codechunk">
-  <td bgcolor="FFEE00">
-    <table>
+  <td bgcolor="f7f7f7">
+    <table class="code-chunk">
       <tr>
-	<td bgcolor="EECF00">
+	<td bgcolor="333333" style="color: white">
 	  <xsl:apply-templates select="frame"/>
 	</td>
       </tr>
       <tr>
-	<td bgcolor="EECF00">
+	<td bgcolor="333333" style="color: white">
 	  <nobr>
 	    entryLabel=<xsl:value-of select="@entrylabel"/>
 	    exitLabel=<xsl:value-of select="@exitlabel"/>
@@ -62,14 +73,12 @@
   <tr>
     <xsl:apply-templates select="imc"/>
   </tr>
-  <tr>
-  </tr>
 </xsl:template>
 
 <xsl:template match="node">
   <td>
     <table width="100%">
-      <tr bgcolor="FFEE00">
+      <tr bgcolor="f7f7f7">
 	<td colspan="1000">
 	  <nobr>
 	    <xsl:text>&#xA0;</xsl:text>
@@ -125,10 +134,10 @@
 <xsl:template match="frame">
   <table width="100%">
     <tr>
-      <td>
+      <td style="color: white">
 	<nobr>
 	  FRAME
-	  label=<font style="font-family:courier new"><xsl:value-of select="@label"/></font>
+	  label=<font><xsl:value-of select="@label"/></font>
 	  depth=<xsl:value-of select="@depth"/> 
 	  size=<xsl:value-of select="@size"/> 
 	  locs=<xsl:value-of select="@locssize"/>
@@ -145,7 +154,7 @@
   <td>
     <table width="100%">
       <tr>
-	<td bgcolor="C7C232" colspan="1000">
+	<td bgcolor="ffffff" colspan="1000">
 	  <xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
 	  <xsl:value-of select="@instruction"/>
 	  <xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
