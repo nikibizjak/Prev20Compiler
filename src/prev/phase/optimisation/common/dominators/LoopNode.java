@@ -78,6 +78,20 @@ public class LoopNode {
         return nodes;
     }
 
+    public HashSet<ControlFlowGraphNode> getAllNodes() {
+        HashSet<ControlFlowGraphNode> allNodes = new HashSet<ControlFlowGraphNode>();
+        this.addAllNodes(allNodes);
+        return allNodes;
+    }
+
+    private void addAllNodes(HashSet<ControlFlowGraphNode> allNodes) {
+        allNodes.add(this.header);
+        allNodes.addAll(this.loopItems);
+        for (LoopNode subLoop : this.subLoops) {
+            subLoop.addAllNodes(allNodes);
+        }
+    }
+
     public LinkedList<ControlFlowGraphNode> getLoopItems() {
         LinkedList<ControlFlowGraphNode> loopItems = new LinkedList<ControlFlowGraphNode>();
         for (ControlFlowGraphNode node : this.loopItems) {

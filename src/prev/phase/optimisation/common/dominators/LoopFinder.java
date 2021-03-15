@@ -2,10 +2,13 @@ package prev.phase.optimisation.common.dominators;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
+import java.util.Collections;
+import prev.common.report.*;
 
 import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraph;
 import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraphNode;
@@ -75,7 +78,8 @@ public class LoopFinder {
                     }
                 }
     
-                newDominators.addAll(intersection);
+                if (intersection != null)
+                    newDominators.addAll(intersection);
                 boolean dominatorsChanged = !newDominators.equals(dominators.get(node));
                 hasChanged = dominatorsChanged || hasChanged;
 
@@ -170,20 +174,18 @@ public class LoopFinder {
     }
 
     private ArrayList<ControlFlowGraphNode> constructLoop(ControlFlowGraphNode from, ControlFlowGraphNode to) {
-        ArrayList<ControlFlowGraphNode> loop = new ArrayList<ControlFlowGraphNode>();
-        loop.add(from);
+        LinkedHashSet<ControlFlowGraphNode> alreadyVisited = new LinkedHashSet<ControlFlowGraphNode>();
+        alreadyVisited.add(to);
+        constructLoop(from, alreadyVisited);
+        return new ArrayList<ControlFlowGraphNode>(alreadyVisited);
+    }
 
-        ControlFlowGraphNode currentNode = from;
-        while (currentNode != null && currentNode != to) {
-            currentNode = immediateDominators.get(currentNode);
-            if (loop.contains(currentNode))
-                break;
-
-            if (currentNode != null)
-                loop.add(currentNode);
+    private void constructLoop(ControlFlowGraphNode node, LinkedHashSet<ControlFlowGraphNode> alreadyVisited) {
+        alreadyVisited.add(node);
+        for (ControlFlowGraphNode predecessor : node.getPredecessors()) {
+            if (!alreadyVisited.contains(predecessor))
+                constructLoop(predecessor, alreadyVisited);
         }
-
-        return loop;
     }
 
 }
