@@ -37,7 +37,7 @@ public class ImcLABEL extends ImcStmt {
 
 	@Override
 	public String toString() {
-		return "LABEL(" + label.name + ")";
+		return label.name;
 	}
 
 

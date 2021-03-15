@@ -36,7 +36,7 @@ public class ImcCONST extends ImcExpr {
 
 	@Override
 	public String toString() {
-		return "CONST(" + value + ")";
+		return Long.toString(value);
 	}
 
 

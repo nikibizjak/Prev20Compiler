@@ -38,7 +38,7 @@ public class ImcESTMT extends ImcStmt {
 
 	@Override
 	public String toString() {
-		return "ESTMT(" + expr.toString() + ")";
+		return expr.toString();
 	}
 
 }

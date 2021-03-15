@@ -37,7 +37,7 @@ public class ImcTEMP extends ImcExpr {
 
 	@Override
 	public String toString() {
-		return "TEMP(" + temp.temp + ")";
+		return "T" + temp.temp;
 	}
 
 

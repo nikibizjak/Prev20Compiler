@@ -43,7 +43,7 @@ public class ImcMOVE extends ImcStmt {
 
 	@Override
 	public String toString() {
-		return "MOVE(" + dst.toString() + "," + src.toString() + ")";
+		return dst.toString() + " ← " + src.toString();
 	}
 
 	@Override

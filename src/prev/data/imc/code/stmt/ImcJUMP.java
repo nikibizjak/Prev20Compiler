@@ -37,7 +37,7 @@ public class ImcJUMP extends ImcStmt {
 
 	@Override
 	public String toString() {
-		return "JUMP(" + label.name + ")";
+		return "JUMP " + label.name;
 	}
 
 }

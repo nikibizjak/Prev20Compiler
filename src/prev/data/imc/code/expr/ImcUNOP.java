@@ -47,7 +47,8 @@ public class ImcUNOP extends ImcExpr {
 
 	@Override
 	public String toString() {
-		return "UNOP(" + oper + "," + subExpr.toString() + ")";
+		char operator = oper == Oper.NOT ? '!' : '-';
+		return String.format("%c%s", operator, subExpr.toString());
 	}
 
 

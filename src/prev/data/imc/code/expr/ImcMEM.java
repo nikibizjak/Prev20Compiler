@@ -39,7 +39,7 @@ public class ImcMEM extends ImcExpr {
 
 	@Override
 	public String toString() {
-		return "MEM(" + addr.toString() + ")";
+		return "M[" + addr.toString() + "]";
 	}
 
 	@Override

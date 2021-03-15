@@ -71,12 +71,11 @@ public class ImcCALL extends ImcExpr {
 	@Override
 	public String toString() {
 		StringBuffer buffer = new StringBuffer();
-		buffer.append("CALL(");
 		buffer.append(label.name);
+		buffer.append("(");
 		for (int a = 0; a < args.size(); a++) {
-			buffer.append(",");
-			buffer.append(offs.get(a).toString());
-			buffer.append(":");
+			if (a > 0)
+				buffer.append(", ");
 			buffer.append(args.get(a).toString());
 		}
 		buffer.append(")");
