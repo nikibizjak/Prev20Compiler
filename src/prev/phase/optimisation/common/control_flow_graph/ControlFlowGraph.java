@@ -108,7 +108,7 @@ public class ControlFlowGraph {
     }
 
     private static void print(ControlFlowGraphNode node, HashSet<ControlFlowGraphNode> alreadyPrinted) {
-        System.out.println(node);
+        System.out.println(node.statement);
         alreadyPrinted.add(node);
         for (ControlFlowGraphNode successor : node.getSuccessors()) {
             if (!alreadyPrinted.contains(successor))
