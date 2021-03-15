@@ -19,8 +19,7 @@ public class Preheader {
     }
 
     public void append(ControlFlowGraphNode node) {
-        this.graph.insertAfter(this.preheaderEnd, node);
-        this.preheaderEnd = node;
+        this.graph.insertBefore(this.preheaderEnd, node);
     }
 
 }

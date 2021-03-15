@@ -55,14 +55,29 @@ public class LoopHoisting {
             // Construct a new control-flow graph node that will be inserted
             // before loop header.
             MemLabel preheaderLabel = MemLabel.uniqueFromName("preheader");
-            ControlFlowGraphNode preheaderNode = new ControlFlowGraphNode(new ImcLABEL(preheaderLabel));
-            preheader = new Preheader(graph, preheaderNode, preheaderNode);
+            ControlFlowGraphNode firstPreheaderNode = new ControlFlowGraphNode(new ImcLABEL(preheaderLabel));
 
+            MemLabel headerLabel = ((ImcLABEL) header.statement).label;
+            ControlFlowGraphNode lastPreheaderNode = new ControlFlowGraphNode(new ImcJUMP(headerLabel));
+
+            // graph.insertBefore(header, firstPreheaderNode);
             for (ControlFlowGraphNode predecessor : header.getPredecessors()) {
-                if (loop.loopItems.contains(predecessor))
-                    continue;
-                graph.insertAfter(predecessor, preheaderNode);
+                if (!loop.containsNode(predecessor)) {
+                    graph.insertAfter(predecessor, firstPreheaderNode);
+                }
             }
+            
+            // Remove all loop exits from predecessors of first preheader node
+            for (ControlFlowGraphNode predecessor : firstPreheaderNode.getPredecessors()) {
+                if (loop.containsNode(predecessor)) {
+                    // This is a loop exit, remove it
+                    firstPreheaderNode.predecessors.remove(predecessor);
+                    predecessor.successors.remove(firstPreheaderNode);
+                }
+            }
+            
+            graph.insertAfter(firstPreheaderNode, lastPreheaderNode);
+            preheader = new Preheader(graph, firstPreheaderNode, lastPreheaderNode);
         }
 
         loop.setPreheader(preheader);
@@ -162,8 +177,16 @@ public class LoopHoisting {
         // loop. The TEMPS that won't match all three conditions will be removed.
         LinkedHashSet<ControlFlowGraphNode> hoistingCandidates = new LinkedHashSet<ControlFlowGraphNode>();
         HashSet<ImcTEMP> alreadyDefined = new HashSet<ImcTEMP>();
-        for (ControlFlowGraphNode node : loop.getLoopItems()) {
+        HashSet<ControlFlowGraphNode> loopNodes = loop.getAllNodes();
 
+        // Iterate over all nodes in graph, but skip those that are not inside
+        // the loop. This way, the order of the instructions is preserved. If we
+        // iterated over loopNodes.allNodes(), the statements would be hoisted
+        // in incorrect order, causing the program to break.
+        for (ControlFlowGraphNode node : graph.nodes) {
+            if (!loopNodes.contains(node))
+                continue;
+            
             if (!isBinaryOperation(node.statement))
                 continue;
 
@@ -195,9 +218,9 @@ public class LoopHoisting {
         // Find loop exits. Loop exit is a ControlFlowGraphNode which can jump
         // to a ControlFlowGraphNode that is not in loop.loopItems
         HashSet<ControlFlowGraphNode> loopExits = new HashSet<ControlFlowGraphNode>();
-        for (ControlFlowGraphNode node : loop.loopItems) {
+        for (ControlFlowGraphNode node : loop.getAllNodes()) {
             Set<ControlFlowGraphNode> successors = node.getSuccessors();
-            successors.removeAll(loop.loopItems);
+            successors.removeAll(loop.getAllNodes());
             if (successors.size() > 0)
                 loopExits.add(node);
         }
