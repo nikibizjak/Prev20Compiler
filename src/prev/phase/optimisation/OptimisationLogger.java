@@ -40,7 +40,9 @@ public class OptimisationLogger extends AstNullVisitor<Object, String> {
 		codeChunk.frame.log(logger);
 		for (ImcStmt stmt : codeChunk.stmts()) {
 			logger.begElement("stmt");
-			stmt.log(logger);
+            logger.begElement("imc");
+            logger.addAttribute("instruction", stmt.toString());
+            logger.endElement();
 			logger.endElement();
 		}
 		logger.endElement();
