@@ -307,15 +307,18 @@ public class Compiler {
 				// --target-phase=interpreter flag. It runs the code using
 				// intermediate representation interpreter. 
 				if (Compiler.cmdLineArgValue("--target-phase").equals("interpreter")) {
-					Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
-					System.out.println("Running program");
-					long startTime = System.currentTimeMillis();
-					long exitCode = interpreter.run("_main");
-					long endTime = System.currentTimeMillis();
-					long elapsedTime = endTime - startTime;
-					System.out.printf("Exit code: %d%n", exitCode);
-					System.out.printf("Elapsed time: %d%n", elapsedTime);
-					break;
+					try {
+						Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+						System.out.println("Running program");
+						long startTime = System.currentTimeMillis();
+						long exitCode = interpreter.run("_main");
+						long endTime = System.currentTimeMillis();
+						long elapsedTime = endTime - startTime;
+						System.out.printf("Exit code: %d%n", exitCode);
+						System.out.printf("Elapsed time: %d%n", elapsedTime);
+					} finally {
+						break;
+					}
 				}
 								
 				// Machine code generation.
