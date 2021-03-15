@@ -46,7 +46,7 @@ public class DeadCodeElimination {
     }
 
     private static boolean statementValidForDeadCodeElimination(ImcStmt statement) {
-        return statement instanceof ImcMOVE && ((ImcMOVE) statement).dst instanceof ImcTEMP && (((ImcMOVE) statement).src instanceof ImcTEMP || ((ImcMOVE) statement).src instanceof ImcCONST || ((ImcMOVE) statement).src instanceof ImcMEM);
+        return statement instanceof ImcMOVE && ((ImcMOVE) statement).dst instanceof ImcTEMP && (((ImcMOVE) statement).src instanceof ImcTEMP || ((ImcMOVE) statement).src instanceof ImcCONST || ((ImcMOVE) statement).src instanceof ImcMEM || ((ImcMOVE) statement).src instanceof ImcBINOP || ((ImcMOVE) statement).src instanceof ImcUNOP);
     }
 
 }
