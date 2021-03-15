@@ -12,6 +12,7 @@ import prev.data.imc.code.stmt.*;
 import java.util.*;
 import prev.data.mem.*;
 import prev.data.lin.*;
+import prev.common.report.*;
 
 public class CopyPropagation {
 
@@ -25,23 +26,37 @@ public class CopyPropagation {
         return null;
     }
 
-    public static boolean isInvalid(ControlFlowGraphNode currentNode, ControlFlowGraphNode finishNode, ImcTEMP temp, boolean isInvalidPath, HashSet<ControlFlowGraphNode> alreadyVisited) {
-        alreadyVisited.add(currentNode);
-
-        // If we have reached finishNode, stop
-        if (currentNode == finishNode)
-            return isInvalidPath;
-
-        isInvalidPath = isInvalidPath || currentNode.getDefines().contains(temp);
-        
-        for (ControlFlowGraphNode predecessor : currentNode.getPredecessors()) {
-            if (!alreadyVisited.contains(predecessor)) {
-                boolean found = isInvalid(predecessor, finishNode, temp, isInvalidPath, alreadyVisited);
-                if (found)
+    public static boolean isInvalid(ControlFlowGraphNode currentNode, ControlFlowGraphNode finishNode, ImcTEMP temp) {
+        connectionPath.clear();
+        connectionPaths.clear();
+        findAllPaths(currentNode, finishNode);
+        for (Stack<ControlFlowGraphNode> path : connectionPaths) {
+            while (!path.isEmpty()) {
+                ControlFlowGraphNode pathNode = path.pop();
+                if (pathNode.equals(currentNode) || pathNode.equals(finishNode))
+                    continue;
+                if (pathNode.getDefines().contains(temp))
                     return true;
             }
         }
         return false;
+    }
+
+    static Stack<ControlFlowGraphNode> connectionPath = new Stack<ControlFlowGraphNode>();
+    static List<Stack<ControlFlowGraphNode>> connectionPaths = new ArrayList<Stack<ControlFlowGraphNode>>();
+    static void findAllPaths(ControlFlowGraphNode node, ControlFlowGraphNode targetNode) {
+        for (ControlFlowGraphNode nextNode : node.getPredecessors()) {
+            if (nextNode.equals(targetNode)) {
+                Stack temp = new Stack<ControlFlowGraphNode>();
+                for (ControlFlowGraphNode node1 : connectionPath)
+                    temp.add(node1);
+                connectionPaths.add(temp);
+            } else if (!connectionPath.contains(nextNode)) {
+                connectionPath.push(nextNode);
+                findAllPaths(nextNode, targetNode);
+                connectionPath.pop();
+            }
+        }
     }
 
     public static boolean run(ControlFlowGraph graph) {
@@ -84,12 +99,13 @@ public class CopyPropagation {
                     continue;
 
                 // Check rule 3
-                HashSet<ControlFlowGraphNode> set = new HashSet<ControlFlowGraphNode>();
-                boolean isInvalidPath = isInvalid(node, definitionNode, replacementTemporary, false, set);
+                boolean isInvalidPath = isInvalid(node, definitionNode, replacementTemporary);
                 if (isInvalidPath)
                     continue;
 
-                node.statement = node.statement.accept(new StatementReplacer(), new Replacement(usedTemporary, replacementTemporary));
+                ImcStmt newStatement = node.statement.accept(new StatementReplacer(), new Replacement(usedTemporary, replacementTemporary));
+                hasGraphChanged = hasGraphChanged || !newStatement.equals(node.statement);
+                node.statement = newStatement;
             }
         }
 
