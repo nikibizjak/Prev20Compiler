@@ -7,6 +7,7 @@ import prev.data.imc.code.stmt.*;
 import prev.phase.Phase;
 import prev.phase.abstr.Abstr;
 import prev.phase.imclin.*;
+import prev.data.mem.*;
 import prev.phase.optimisation.common.control_flow_graph.*;
 import prev.phase.optimisation.constant_folding.*;
 import prev.phase.optimisation.peephole_optimisation.*;
@@ -58,6 +59,7 @@ public class Optimisation extends Phase {
 
             // Construct a control-flow graph on which all optimisations will run
             ControlFlowGraph graph = ControlFlowGraphBuilder.build(codeChunk);
+            addOptimisationLog("original", graph);
 
             // Repeat optimisations until graph is fully optimized
             Optimisation.runOptimisations(graph, maxIterations);
@@ -83,19 +85,24 @@ public class Optimisation extends Phase {
         boolean loopHoisting = getFlagValue("--loop-hoisting");
         boolean inductionVariableElimination = getFlagValue("--induction-variable-elimination");
 
-        Report.debug(String.format("Optimising frame %s", graph.codeChunk.frame.label.name));
+        Report.info(String.format("Optimising frame %s", graph.codeChunk.frame.label.name));
 
         // Execute optimisations one by one until ALL optimisations stop
         // modifying control-flow graph or number of iterations exceeds maximum
         // number of iterations maxIter. 
         int currentIteration = 0;
         boolean repeatOptimisations = false;
+
+        long startTime = System.currentTimeMillis();
         do {
             repeatOptimisations = false;
 
             if (peepholeOptimisation) {
                 Report.debug("Peephole optimisations started");
                 boolean graphChanged = PeepholeOptimisation.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("peephole optimisation", graph);
+                }
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Peephole optimisations ended");
             }
@@ -103,6 +110,9 @@ public class Optimisation extends Phase {
             if (commonSubexpressionElimination) {
                 Report.debug("Common subexpression elimination started");
                 boolean graphChanged = CommonSubexpressionElimination.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("common subexpression elimination", graph);
+                }
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Common subexpression elimination ended");
             }
@@ -110,6 +120,9 @@ public class Optimisation extends Phase {
             if (constantFolding) {
                 Report.debug("Constant folding started");
                 boolean graphChanged = ConstantFolding.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("constant folding", graph);
+                }
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Constant folding ended");
             }
@@ -117,6 +130,9 @@ public class Optimisation extends Phase {
             if (symbolicConstantFolding) {
                 Report.debug("Symbolic constant folding started");
                 boolean graphChanged = SymbolicConstantFolding.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("symbolic constant folding", graph);
+                }
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Symbolic constant folding ended");
             }
@@ -124,6 +140,9 @@ public class Optimisation extends Phase {
             if (constantPropagation) {
                 Report.debug("Constant propagation started");
                 boolean graphChanged = ConstantPropagation.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("constant propagation", graph);
+                }
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Constant propagation ended");
             }
@@ -131,6 +150,9 @@ public class Optimisation extends Phase {
             if (copyPropagation) {
                 Report.debug("Copy propagation started");
                 boolean graphChanged = CopyPropagation.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("copy propagation", graph);
+                }
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Copy propagation ended");
             }
@@ -138,6 +160,9 @@ public class Optimisation extends Phase {
             if (deadCodeElimination) {
                 Report.debug("Dead code elimination started");
                 boolean graphChanged = DeadCodeElimination.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("dead code elimination", graph);
+                }
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Dead code elimination ended");
             }
@@ -145,6 +170,9 @@ public class Optimisation extends Phase {
             if (loopHoisting) {
                 Report.debug("Loop invariant code motion started");
                 boolean graphChanged = LoopHoisting.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("loop invariant code motion", graph);
+                }
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Loop invariant code motion ended");
             }
@@ -152,6 +180,9 @@ public class Optimisation extends Phase {
             if (inductionVariableElimination) {
                 Report.debug("Induction variable elimination started");
                 boolean graphChanged = InductionVariableElimination.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("induction variable elimination", graph);
+                }
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Induction variable elimination ended");
             }
@@ -160,8 +191,21 @@ public class Optimisation extends Phase {
 
         } while (repeatOptimisations && currentIteration < maxIterations);
 
-        Report.debug(String.format("  * optimisation completed in %d iterations", currentIteration));
+        long endTime = System.currentTimeMillis();
+        long totalTime = endTime - startTime;
 
+        Report.info(String.format("  * optimisation completed in %d iterations [ %d ms ]", currentIteration, totalTime));
+
+    }
+
+    private static Vector<LinCodeChunk> optimisations = new Vector<LinCodeChunk>();
+
+    private static void addOptimisationLog(String title, ControlFlowGraph graph) {
+        LinCodeChunk codeChunk = graph.codeChunk;
+        Vector<ImcStmt> newStatements = ControlFlowGraphBuilder.toStatements(graph);
+        MemFrame newFrame = codeChunk.frame.copyWithLabel(new MemLabel(codeChunk.frame.label.name + " " + title));
+        LinCodeChunk newCodeChunk = new LinCodeChunk(newFrame, newStatements, codeChunk.entryLabel, codeChunk.exitLabel);
+        optimisations.add(newCodeChunk);
     }
 
     private static boolean getFlagValue(String flag) {
@@ -195,7 +239,7 @@ public class Optimisation extends Phase {
         OptimisationLogger optimisationLogger = new OptimisationLogger(logger);
 		for (LinDataChunk dataChunk : ImcLin.dataChunks())
             optimisationLogger.log(dataChunk);
-		for (LinCodeChunk codeChunk : ImcLin.codeChunks())
+        for (LinCodeChunk codeChunk : optimisations)
             optimisationLogger.log(codeChunk);
 	}
 
