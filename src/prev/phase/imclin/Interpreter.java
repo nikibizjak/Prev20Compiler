@@ -35,6 +35,11 @@ public class Interpreter {
 
 	private MemTemp HP;
 
+	private long numberOfWrites = 0;
+	private long numberOfReads = 0;
+	private long numberOfJumps = 0;
+	private long numberOfFunctionCalls = 0;
+
 	public Interpreter(Vector<LinDataChunk> dataChunks, Vector<LinCodeChunk> codeChunks) {
 		random = new Random();
 
@@ -87,6 +92,7 @@ public class Interpreter {
 			memory.put(address + b, byteval);
 			value = value >> 8;
 		}
+		numberOfWrites += 1;
 	}
 
 	private Long memLD(Long address) {
@@ -107,6 +113,7 @@ public class Interpreter {
 		}
 		if (debug)
 			System.out.printf("### %d <- [%d]\n", value, address);
+		numberOfReads += 1;
 		return value;
 	}
 
@@ -259,6 +266,7 @@ public class Interpreter {
 			if (debug)
 				System.out.println(imcCJump);
 			Long cond = imcCJump.cond.accept(new ExprInterpreter(), null);
+			numberOfJumps += 1;
 			return (cond != 0) ? imcCJump.posLabel : imcCJump.negLabel;
 		}
 
@@ -278,6 +286,7 @@ public class Interpreter {
 		public MemLabel visit(ImcJUMP imcJump, Object arg) {
 			if (debug)
 				System.out.println(imcJump);
+			numberOfJumps += 1;
 			return imcJump.label;
 		}
 
@@ -325,6 +334,7 @@ public class Interpreter {
 		}
 
 		private void call(ImcCALL imcCall) {
+			numberOfFunctionCalls += 1;
 			Long offset = 0L;
 			for (ImcExpr callArg : imcCall.args()) {
 				Long callValue = callArg.accept(new ExprInterpreter(), null);
@@ -444,11 +454,26 @@ public class Interpreter {
 
 	}
 
-	public long run(String entryMemLabel) {
+	public void printStatistics(long elapsedTime) {
+		System.out.println("---- INTERPRETER STATISTICS ------------------------------------------");
+		System.out.printf("  %24s: %10d\n", "Number of reads", numberOfReads);
+		System.out.printf("  %24s: %10d\n", "Number of writes", numberOfWrites);
+		System.out.printf("  %24s: %10d\n", "Number of jumps", numberOfJumps);
+		System.out.printf("  %24s: %10d\n", "Number of function calls", numberOfFunctionCalls);
+		System.out.printf("  %24s: %8dms\n", "Elapsed time", elapsedTime);
+		System.out.println("----------------------------------------------------------------------");
+	}
+
+	public long run(String entryMemLabel, boolean printStatistics) {
 		for (MemLabel label : callMemLabels.keySet()) {
 			if (label.name.equals(entryMemLabel)) {
+				long start = System.currentTimeMillis();
 				funCall(label);
-				return memLD(tempLD(SP));
+				Long result = memLD(tempLD(SP));
+				long end = System.currentTimeMillis();
+				if (printStatistics)
+					this.printStatistics(end - start);
+				return result;
 			}
 		}
 		throw new Report.InternalError();

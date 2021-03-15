@@ -51,6 +51,8 @@ public class Compiler {
 	/* Total number of registers (not including FP, SP and HP) */
 	public static int numberOfRegisters = 64;
 
+	public static boolean printInterpreterStatistics = false;
+
 	/** Logging level of the compiler. */
 	public static Report.LoggingLevel loggingLevel = Report.DEFAULT_LOGGING_LEVEL;
 
@@ -182,6 +184,12 @@ public class Compiler {
 							continue;
 						}
 					}
+					if (args[argc].matches("--interpreter-statistics")) {
+						if (cmdLine.get("--interpreter-statistics") == null) {
+							printInterpreterStatistics = true;
+							continue;
+						}
+					}
 					Report.warning("Command line argument '" + args[argc] + "' ignored.");
 				} else {
 					// Source file name.
@@ -309,13 +317,8 @@ public class Compiler {
 				if (Compiler.cmdLineArgValue("--target-phase").equals("interpreter")) {
 					try {
 						Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
-						System.out.println("Running program");
-						long startTime = System.currentTimeMillis();
-						long exitCode = interpreter.run("_main");
-						long endTime = System.currentTimeMillis();
-						long elapsedTime = endTime - startTime;
+						long exitCode = interpreter.run("_main", printInterpreterStatistics);
 						System.out.printf("Exit code: %d%n", exitCode);
-						System.out.printf("Elapsed time: %d%n", elapsedTime);
 					} finally {
 						break;
 					}
