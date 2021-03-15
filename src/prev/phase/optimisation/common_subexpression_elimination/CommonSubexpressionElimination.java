@@ -29,7 +29,8 @@ public class CommonSubexpressionElimination {
 
             hasGraphChanged = false;
 
-            for (ControlFlowGraphNode node : graph.nodes) {
+            for (int i = graph.nodes.size() - 1; i >= 0; i--) {
+                ControlFlowGraphNode node = graph.nodes.get(i);
                 if (!(node.statement instanceof ImcMOVE))
                     continue;
                 
@@ -106,14 +107,10 @@ public class CommonSubexpressionElimination {
                         Report.debug("  * Inserted new statement: " + initializeStatement);
                         
                         // Modify found statement n': v <- w
-                        // foundNode.statement = new ImcMOVE(((ImcMOVE) foundNode.statement).dst, temporary);
-                        Report.debug("  * Modified statement before: " + foundNode.statement);
                         foundNode.statement = foundNode.statement.accept(new StatementReplacer(), new Replacement(sourceExpression, temporary, true));
                         Report.debug("  * Modified statement after: " + foundNode.statement);
 
                         // Modify this node statement s': t <- w
-                        // node.statement = new ImcMOVE(moveStatement.dst, temporary);
-                        Report.debug("  * Modified statement before: " + node.statement);
                         node.statement = node.statement.accept(new StatementReplacer(), new Replacement(sourceExpression, temporary, true));
                         Report.debug("  * Modified statement after: " + node.statement);
 
