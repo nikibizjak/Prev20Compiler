@@ -47,7 +47,7 @@ public class CopyPropagation {
     static void findAllPaths(ControlFlowGraphNode node, ControlFlowGraphNode targetNode) {
         for (ControlFlowGraphNode nextNode : node.getPredecessors()) {
             if (nextNode.equals(targetNode)) {
-                Stack temp = new Stack<ControlFlowGraphNode>();
+                Stack<ControlFlowGraphNode> temp = new Stack<ControlFlowGraphNode>();
                 for (ControlFlowGraphNode node1 : connectionPath)
                     temp.add(node1);
                 connectionPaths.add(temp);
