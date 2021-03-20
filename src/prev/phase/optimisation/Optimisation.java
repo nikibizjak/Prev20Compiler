@@ -34,36 +34,7 @@ public class Optimisation extends Phase {
         this.run(Optimisation.DEFAULT_MAX_ITERATIONS);
     }
 
-    public void run(int maxIterations) {
-
-        // Some of the optimisation can be executed prior to code linearization
-        // (ie. constant folding and symbolic constant folding).
-        /*boolean constantFolding = getFlagValue("--constant-folding");
-        if (constantFolding)
-            this.expressionTreeConstantFolding();
-        
-        boolean symbolicConstantFolding = getFlagValue("--symbolic-constant-folding");
-        if (symbolicConstantFolding)
-            this.expressionTreeSymbolicConstantFolding();*/
-
-        // Linearize intermediate code
-        this.intermediateCodeLinearization();
-
-        // If target phase is imclin, no optimisations should be performed on
-        // linearized code.
-        if (Compiler.cmdLineArgValue("--target-phase").equals("imclin"))
-            return;
-        
-        if (Compiler.cmdLineArgValue("--target-phase").equals("interpreter")) {
-            try {
-                Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
-                long exitCode = interpreter.run("_main", Compiler.printInterpreterStatistics);
-                System.out.printf("Exit code: %d%n", exitCode);
-            } catch (Exception e) {
-
-            }
-        }
-        
+    public void run(int maxIterations) {        
         // Execute optimisation on all code chunks
         Vector<LinCodeChunk> optimizedCodeChunks = new Vector<LinCodeChunk>();
         for (LinCodeChunk codeChunk : ImcLin.codeChunks()) {
@@ -224,14 +195,6 @@ public class Optimisation extends Phase {
         if (flagArgument == null || flagArgument.length() <= 0)
             return false;
         return Boolean.parseBoolean(flagArgument);
-    }
-
-    public void intermediateCodeLinearization() {
-        // Linearization of intermediate code.
-        try (ImcLin imclin = new ImcLin()) {
-            Abstr.tree.accept(new ChunkGenerator(), null);
-            imclin.log();
-        }
     }
 
     public void expressionTreeConstantFolding() {

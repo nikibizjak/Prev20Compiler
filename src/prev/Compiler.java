@@ -301,9 +301,17 @@ public class Compiler {
 				}
 				if (Compiler.cmdLineArgValue("--target-phase").equals("imcgen"))
 					break;
+				
+				// Linearization of intermediate code.
+				try (ImcLin imclin = new ImcLin()) {
+					Abstr.tree.accept(new ChunkGenerator(), null);
+					imclin.log();
+				}
+				if (Compiler.cmdLineArgValue("--target-phase").equals("imclin"))
+					break;
 
-				// Optimize generated intermediate code. The optimisation phase
-				// will also perform linearization of intermediate code.
+				// Optimize generated intermediate code. The optimizer will
+				// modify code chunks in ImcLin.codeChunks Vector.
 				try (Optimisation optimisation = new Optimisation()) {
 					optimisation.run();
 					optimisation.log();
