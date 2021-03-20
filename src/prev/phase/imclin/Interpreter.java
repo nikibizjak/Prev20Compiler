@@ -39,6 +39,7 @@ public class Interpreter {
 	private long numberOfReads = 0;
 	private long numberOfJumps = 0;
 	private long numberOfFunctionCalls = 0;
+	private long numberOfInstructions = 0;
 
 	public Interpreter(Vector<LinDataChunk> dataChunks, Vector<LinCodeChunk> codeChunks) {
 		random = new Random();
