@@ -197,18 +197,6 @@ public class Optimisation extends Phase {
         return Boolean.parseBoolean(flagArgument);
     }
 
-    public void expressionTreeConstantFolding() {
-        Report.info("\t* expression tree constant folding");
-        ConstantFolding constantFolder = new ConstantFolding();
-        Abstr.tree.accept(constantFolder, null);
-    }
-
-    public void expressionTreeSymbolicConstantFolding() {
-        Report.info("\t* expression tree symbolic constant folding");
-        SymbolicConstantFolding constantFolder = new SymbolicConstantFolding();
-        Abstr.tree.accept(constantFolder, null);
-    }
-
 	public void log() {
         OptimisationLogger optimisationLogger = new OptimisationLogger(logger);
 		for (LinDataChunk dataChunk : ImcLin.dataChunks())
