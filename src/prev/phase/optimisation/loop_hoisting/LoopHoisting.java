@@ -85,12 +85,17 @@ public class LoopHoisting {
     }
 
     /** Whether or not, the statement is loop invariant */
-    public static boolean isLoopInvariant(LoopNode loop, ControlFlowGraphNode node) {
+    public static boolean isLoopInvariant(LoopNode loop, ControlFlowGraphNode node, HashSet<ControlFlowGraphNode> alreadyVisited) {
         // The definition d: t <- a_1 + a_2 is loop invariant within loop L if,
         // for each operand a_i:
         //   1. a_i is a constant or
         //   2. all the definitions of a_i that reach d are outside the loop or
         //   3. only one definition of a_i reaches d, and that definition is loop-invariant
+        if (alreadyVisited.contains(node))
+            return false;
+        
+        alreadyVisited.add(node);
+
         if (!(node.statement instanceof ImcMOVE))
             return false;
         
@@ -139,7 +144,7 @@ public class LoopHoisting {
             // and that definition is loop-invariant
             if (subexpressionDefinitions.size() == 1) {
                 ControlFlowGraphNode onlyReachingDefinition = subexpressionDefinitions.iterator().next();
-                if (!onlyReachingDefinition.statement.equals(node.statement) && isLoopInvariant(loop, onlyReachingDefinition)) {
+                if (!onlyReachingDefinition.statement.equals(node.statement) && isLoopInvariant(loop, onlyReachingDefinition, alreadyVisited)) {
                     continue;
                 }
             }
@@ -191,7 +196,7 @@ public class LoopHoisting {
                 continue;
 
             // Skip all statements that are not loop invariant            
-            if (!isLoopInvariant(loop, node))
+            if (!isLoopInvariant(loop, node, new HashSet<ControlFlowGraphNode>()))
                 continue;
 
             HashSet<ImcTEMP> definitions = node.getDefines();

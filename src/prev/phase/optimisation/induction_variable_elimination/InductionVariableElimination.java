@@ -74,7 +74,9 @@ public class InductionVariableElimination {
             if (onlyReachingDefinition.statement.equals(node.statement))
                 return false;
             
-            if (LoopHoisting.isLoopInvariant(loop, onlyReachingDefinition))
+            HashSet<ControlFlowGraphNode> alreadyVisited = new HashSet<ControlFlowGraphNode>();
+            alreadyVisited.add(node);
+            if (LoopHoisting.isLoopInvariant(loop, onlyReachingDefinition, alreadyVisited))
                 return true;
         }
         
