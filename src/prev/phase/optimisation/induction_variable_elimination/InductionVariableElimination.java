@@ -279,6 +279,12 @@ public class InductionVariableElimination {
         if (otherExpression.equals(temporary)) {
             return null;
         }
+
+        // If the operation is subtraction, the expression should be
+        // -otherExpression. Otherwise, return otherExpression.
+        if (binaryOperation.oper == ImcBINOP.Oper.SUB)
+            return new ImcUNOP(ImcUNOP.Oper.NEG, otherExpression);
+        
         return otherExpression;
     }
 
@@ -382,10 +388,11 @@ public class InductionVariableElimination {
             // Strength reduction should only be performed on derived induction
             // variables with multiplication: T1 <- 8 * T2.
             if (!(definition.statement instanceof ImcMOVE)) continue;
-            if (!(((ImcMOVE) definition.statement).dst instanceof ImcBINOP)) continue;
-
-            ImcBINOP binaryOperation = (ImcBINOP) ((ImcMOVE) definition.statement).dst;
+            if (!(((ImcMOVE) definition.statement).src instanceof ImcBINOP)) continue;
+            ImcBINOP binaryOperation = (ImcBINOP) ((ImcMOVE) definition.statement).src;
             if (binaryOperation.oper != ImcBINOP.Oper.MUL) continue;
+
+            Report.debug("    * Performing strength reduction on variable " + temporary);
 
             // The inductionVariable is now a DerivedInductionVariable and the
             // only definition of this variable is multiplication operation.
