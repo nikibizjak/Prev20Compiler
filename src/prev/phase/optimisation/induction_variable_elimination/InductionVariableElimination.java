@@ -366,37 +366,52 @@ public class InductionVariableElimination {
     private static boolean runStrengthReduction(ControlFlowGraph graph, LoopNode loop, HashMap<ImcTEMP, InductionVariable> inductionVariables) {
         boolean hasGraphChanged = false;
 
-        HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> definitions = ReachingDefinitionsAnalysis.definitions(graph);
-        HashSet<ControlFlowGraphNode> loopNodes = loop.getLoopNodes();
-
         for (ImcTEMP temporary : inductionVariables.keySet()) {
-            InductionVariable inductionVariable = inductionVariables.get(temporary);
-            if (inductionVariable instanceof DerivedInductionVariable && inductionVariables.get(inductionVariable.inductionVariable) instanceof BasicInductionVariable) {
-                // Create new temporary j'
-                ImcTEMP newInductionTemporary = new ImcTEMP(new MemTemp());
+            InductionVariable variable = inductionVariables.get(temporary);
 
-                // After each assignment to variable i, make an assignment j' <- j' + c * b
-                HashSet<ControlFlowGraphNode> inductionVariableAssignments = new HashSet<ControlFlowGraphNode>(definitions.get(inductionVariable.inductionVariable));
-                inductionVariableAssignments.retainAll(loopNodes);
-                for (ControlFlowGraphNode inductionVariableAssignment : inductionVariableAssignments) {
-                    ImcExpr incrementExpression = getIncrementExpression(inductionVariableAssignment, inductionVariable.inductionVariable);
-                    ImcMOVE move = new ImcMOVE(newInductionTemporary, new ImcBINOP(ImcBINOP.Oper.ADD, newInductionTemporary, new ImcBINOP(ImcBINOP.Oper.MUL, incrementExpression, inductionVariable.multiplicationTerm)));
-                    ControlFlowGraphNode moveNode = new ControlFlowGraphNode(move);
-                    graph.insertAfter(inductionVariableAssignment, moveNode);                    
-                }
+            if (!(variable instanceof DerivedInductionVariable)) continue;
+            
+            DerivedInductionVariable inductionVariable = (DerivedInductionVariable) variable;
+            InductionVariable derivedFrom = inductionVariables.get(inductionVariable.inductionVariable);
+            if (!(derivedFrom instanceof BasicInductionVariable)) continue;
+            BasicInductionVariable basicInductionVariable = (BasicInductionVariable) derivedFrom;
+            
+            // Get derived induction variable definition - there will always be at most one.
+            ControlFlowGraphNode definition = inductionVariable.getDefinitions().get(0);
 
-                // Replace assignment j <- ... with j <- j' (there is only one)
-                HashSet<ControlFlowGraphNode> derivedInductionVariableAssignments = new HashSet<ControlFlowGraphNode>(definitions.get(temporary));
-                derivedInductionVariableAssignments.retainAll(loopNodes);
-                ControlFlowGraphNode derivedInductionVariableAssignment = derivedInductionVariableAssignments.iterator().next();
-                derivedInductionVariableAssignment.statement = new ImcMOVE(temporary, newInductionTemporary);
+            // Strength reduction should only be performed on derived induction
+            // variables with multiplication: T1 <- 8 * T2.
+            if (!(definition.statement instanceof ImcMOVE)) continue;
+            if (!(((ImcMOVE) definition.statement).dst instanceof ImcBINOP)) continue;
 
-                // Initialize j' in loop preheader to j' <- a + i * b
-                ImcMOVE newInductionTemporaryInitialization = new ImcMOVE(newInductionTemporary, new ImcBINOP(ImcBINOP.Oper.ADD, inductionVariable.additionTerm, new ImcBINOP(ImcBINOP.Oper.MUL, inductionVariable.inductionVariable, inductionVariable.multiplicationTerm)));
-                ControlFlowGraphNode initializationNode = new ControlFlowGraphNode(newInductionTemporaryInitialization);
-                loop.preheader.append(initializationNode);
-                hasGraphChanged = true;
+            ImcBINOP binaryOperation = (ImcBINOP) ((ImcMOVE) definition.statement).dst;
+            if (binaryOperation.oper != ImcBINOP.Oper.MUL) continue;
+
+            // The inductionVariable is now a DerivedInductionVariable and the
+            // only definition of this variable is multiplication operation.
+            // Perform strength reduction here.
+            ImcTEMP newInductionTemporary = new ImcTEMP(new MemTemp());
+
+            // After each assignment to variable i, make an assignment j' <- j' + c * b
+            Vector<ControlFlowGraphNode> inductionVariableAssignments = basicInductionVariable.getDefinitions();
+            for (ControlFlowGraphNode inductionVariableAssignment : inductionVariableAssignments) {
+                ImcExpr incrementExpression = getIncrementExpression(inductionVariableAssignment, inductionVariable.inductionVariable);
+                ImcMOVE move = new ImcMOVE(newInductionTemporary, new ImcBINOP(ImcBINOP.Oper.ADD, newInductionTemporary, new ImcBINOP(ImcBINOP.Oper.MUL, incrementExpression, inductionVariable.multiplicationTerm)));
+                ControlFlowGraphNode moveNode = new ControlFlowGraphNode(move);
+                graph.insertAfter(inductionVariableAssignment, moveNode);                    
             }
+
+            // Replace assignment j <- ... with j <- j' (there is only one)
+            Vector<ControlFlowGraphNode> derivedInductionVariableAssignments = inductionVariable.getDefinitions();
+            ControlFlowGraphNode derivedInductionVariableAssignment = derivedInductionVariableAssignments.get(0);
+            derivedInductionVariableAssignment.statement = new ImcMOVE(temporary, newInductionTemporary);
+
+            // Initialize j' in loop preheader to j' <- a + i * b
+            ImcMOVE newInductionTemporaryInitialization = new ImcMOVE(newInductionTemporary, new ImcBINOP(ImcBINOP.Oper.ADD, inductionVariable.additionTerm, new ImcBINOP(ImcBINOP.Oper.MUL, inductionVariable.inductionVariable, inductionVariable.multiplicationTerm)));
+            ControlFlowGraphNode initializationNode = new ControlFlowGraphNode(newInductionTemporaryInitialization);
+            loop.preheader.append(initializationNode);
+            hasGraphChanged = true;
+            
         }
 
         return hasGraphChanged;
