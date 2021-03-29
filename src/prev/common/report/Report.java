@@ -11,7 +11,8 @@ public class Report {
 
 		DEBUG(0),
 		INFO(1),
-		WARNING(2);
+		WARNING(2),
+		NONE(99);
 
 		private final int value;
 		LoggingLevel(final int value) {
