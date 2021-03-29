@@ -102,11 +102,11 @@ public class PeepholeOptimisation {
             ControlFlowGraphNode sourceDefinitionNode = sourceDefinitions.iterator().next();
             if (!(sourceDefinitionNode.statement instanceof ImcMOVE)) continue;
             ImcExpr sourceExpression = ((ImcMOVE) sourceDefinitionNode.statement).src;
-
+            
             ImcStmt modifiedStatement = new ImcMOVE(moveStatement.dst, sourceExpression);
-            Report.debug("  * Replacing statement " + node.statement + " with " + modifiedStatement);
-            node.statement = modifiedStatement;
-            nodesToRemove.add(sourceDefinitionNode);
+            Report.debug("  * Replacing statement " + sourceDefinitionNode.statement + " with " + modifiedStatement);
+            sourceDefinitionNode.statement = modifiedStatement;
+            nodesToRemove.add(node);
             hasGraphChanged = true;
 
         }
