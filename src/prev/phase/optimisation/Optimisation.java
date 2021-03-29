@@ -79,26 +79,6 @@ public class Optimisation extends Phase {
         do {
             repeatOptimisations = false;
 
-            if (peepholeOptimisation) {
-                Report.debug("Peephole optimisations started");
-                boolean graphChanged = PeepholeOptimisation.run(graph);
-                if (graphChanged) {
-                    addOptimisationLog("peephole optimisation", graph);
-                }
-                repeatOptimisations = repeatOptimisations || graphChanged;
-                Report.debug("Peephole optimisations ended");
-            }
-
-            if (commonSubexpressionElimination) {
-                Report.debug("Common subexpression elimination started");
-                boolean graphChanged = CommonSubexpressionElimination.run(graph);
-                if (graphChanged) {
-                    addOptimisationLog("common subexpression elimination", graph);
-                }
-                repeatOptimisations = repeatOptimisations || graphChanged;
-                Report.debug("Common subexpression elimination ended");
-            }
-
             if (constantFolding) {
                 Report.debug("Constant folding started");
                 boolean graphChanged = ConstantFolding.run(graph);
@@ -117,6 +97,26 @@ public class Optimisation extends Phase {
                 }
                 repeatOptimisations = repeatOptimisations || graphChanged;
                 Report.debug("Symbolic constant folding ended");
+            }
+
+            if (peepholeOptimisation) {
+                Report.debug("Peephole optimisations started");
+                boolean graphChanged = PeepholeOptimisation.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("peephole optimisation", graph);
+                }
+                repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Peephole optimisations ended");
+            }
+
+            if (commonSubexpressionElimination) {
+                Report.debug("Common subexpression elimination started");
+                boolean graphChanged = CommonSubexpressionElimination.run(graph);
+                if (graphChanged) {
+                    addOptimisationLog("common subexpression elimination", graph);
+                }
+                repeatOptimisations = repeatOptimisations || graphChanged;
+                Report.debug("Common subexpression elimination ended");
             }
 
             if (constantPropagation) {
