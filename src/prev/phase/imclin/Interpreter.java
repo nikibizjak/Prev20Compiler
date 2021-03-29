@@ -94,6 +94,7 @@ public class Interpreter {
 			value = value >> 8;
 		}
 		numberOfWrites += 1;
+		numberOfInstructions += 1;
 	}
 
 	private Long memLD(Long address) {
@@ -115,6 +116,7 @@ public class Interpreter {
 		if (debug)
 			System.out.printf("### %d <- [%d]\n", value, address);
 		numberOfReads += 1;
+		numberOfInstructions += 1;
 		return value;
 	}
 
@@ -268,6 +270,7 @@ public class Interpreter {
 				System.out.println(imcCJump);
 			Long cond = imcCJump.cond.accept(new ExprInterpreter(), null);
 			numberOfJumps += 1;
+			numberOfInstructions += 1;
 			return (cond != 0) ? imcCJump.posLabel : imcCJump.negLabel;
 		}
 
@@ -279,6 +282,7 @@ public class Interpreter {
 				call((ImcCALL) imcEStmt.expr);
 				return null;
 			}
+			numberOfInstructions += 1;
 			imcEStmt.expr.accept(new ExprInterpreter(), null);
 			return null;
 		}
@@ -288,6 +292,7 @@ public class Interpreter {
 			if (debug)
 				System.out.println(imcJump);
 			numberOfJumps += 1;
+			numberOfInstructions += 1;
 			return imcJump.label;
 		}
 
@@ -302,6 +307,7 @@ public class Interpreter {
 		public MemLabel visit(ImcMOVE imcMove, Object arg) {
 			if (debug)
 				System.out.println(imcMove);
+			numberOfInstructions += 1;
 			if (imcMove.dst instanceof ImcMEM) {
 				Long dst = ((ImcMEM) (imcMove.dst)).addr.accept(new ExprInterpreter(), null);
 				Long src;
@@ -336,6 +342,7 @@ public class Interpreter {
 
 		private void call(ImcCALL imcCall) {
 			numberOfFunctionCalls += 1;
+			numberOfInstructions += 1;
 			Long offset = 0L;
 			for (ImcExpr callArg : imcCall.args()) {
 				Long callValue = callArg.accept(new ExprInterpreter(), null);
@@ -461,6 +468,7 @@ public class Interpreter {
 		System.out.printf("  %24s: %10d\n", "Number of writes", numberOfWrites);
 		System.out.printf("  %24s: %10d\n", "Number of jumps", numberOfJumps);
 		System.out.printf("  %24s: %10d\n", "Number of function calls", numberOfFunctionCalls);
+		System.out.printf("  %24s: %10d\n", "Number of statements", numberOfInstructions);
 		System.out.printf("  %24s: %8dms\n", "Elapsed time", elapsedTime);
 		System.out.println("----------------------------------------------------------------------");
 	}
