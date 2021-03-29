@@ -43,7 +43,7 @@ public class Compiler {
 	// COMMAND LINE ARGUMENTS
 
 	/** All valid phases of the compiler. */
-	private static final String phases = "none|lexan|synan|abstr|seman|memory|imcgen|optimisation|interpreter|imclin|asmgen|livean|regall|all";
+	private static final String phases = "none|lexan|synan|abstr|seman|memory|imcgen|optimisation|interpreter|interpreter-optimisation|imclin|asmgen|livean|regall|all";
 
 	/** Values of command line arguments. */
 	private static HashMap<String, String> cmdLine = new HashMap<String, String>();
@@ -308,6 +308,19 @@ public class Compiler {
 				}
 				if (Compiler.cmdLineArgValue("--target-phase").equals("imclin"))
 					break;
+				
+				// Interpreter phase before the actual optimisation. This can be
+				// used to measure the optimisation.
+				boolean runInterpreter = Compiler.cmdLineArgValue("--target-phase").equals("interpreter") ||
+					Compiler.cmdLineArgValue("--target-phase").equals("interpreter-optimisation");
+				
+				if (runInterpreter) {
+					Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+					long exitCode = interpreter.run("_main", printInterpreterStatistics);
+					System.out.printf("Exit code: %d%n", exitCode);
+					if (Compiler.cmdLineArgValue("--target-phase").equals("interpreter"))
+						break;
+				}
 
 				// Optimize generated intermediate code. The optimizer will
 				// modify code chunks in ImcLin.codeChunks Vector.
@@ -319,16 +332,15 @@ public class Compiler {
 					break;
 				
 				// Additional phase that can only be executed using
-				// --target-phase=interpreter flag. It runs the code using
-				// intermediate representation interpreter. 
-				if (Compiler.cmdLineArgValue("--target-phase").equals("interpreter")) {
-					try {
-						Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
-						long exitCode = interpreter.run("_main", printInterpreterStatistics);
-						System.out.printf("Exit code: %d%n", exitCode);
-					} finally {
+				// --target-phase=interpreter-optimisation flag. It runs the
+				// code using intermediate representation interpreter after it
+				// has been optimized.
+				if (runInterpreter) {
+					Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+					long exitCode = interpreter.run("_main", printInterpreterStatistics);
+					System.out.printf("Exit code: %d%n", exitCode);
+					if (Compiler.cmdLineArgValue("--target-phase").equals("interpreter-optimisation"))
 						break;
-					}
 				}
 								
 				// Machine code generation.
