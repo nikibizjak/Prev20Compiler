@@ -87,6 +87,9 @@ public class PeepholeOptimisation {
             if (!(moveStatement.dst instanceof ImcTEMP)) continue;
             if (!(moveStatement.src instanceof ImcTEMP)) continue;
 
+            // Do not remove statement RV <- ...
+            if (((ImcTEMP) moveStatement.dst).temp.equals(graph.codeChunk.frame.RV)) continue;
+
             // Check if there is only one use of moveStatement.src temporary
             HashSet<ControlFlowGraphNode> sourceUses = uses.get(moveStatement.src);
             if (sourceUses == null) continue;
