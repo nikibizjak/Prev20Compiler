@@ -75,49 +75,51 @@ public class PeepholeOptimisation {
         // should change to true.
         boolean hasGraphChanged = false;
 
-        HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> definitions = ReachingDefinitionsAnalysis.definitions(graph);
-        HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> uses = uses(graph);
+        boolean repeat = false;
+        while (repeat) {
 
-        Vector<ControlFlowGraphNode> nodesToRemove = new Vector<ControlFlowGraphNode>();
+            HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> definitions = ReachingDefinitionsAnalysis.definitions(graph);
+            HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> uses = uses(graph);
 
-        for (ControlFlowGraphNode node : graph.nodes) {
-            if (!(node.statement instanceof ImcMOVE)) continue;
+            // Vector<ControlFlowGraphNode> nodesToRemove = new Vector<ControlFlowGraphNode>();
 
-            ImcMOVE moveStatement = (ImcMOVE) node.statement;
-            if (!(moveStatement.dst instanceof ImcTEMP)) continue;
-            if (!(moveStatement.src instanceof ImcTEMP)) continue;
+            for (ControlFlowGraphNode node : graph.nodes) {
+                if (!(node.statement instanceof ImcMOVE)) continue;
 
-            // Do not remove statement RV <- ...
-            if (((ImcTEMP) moveStatement.dst).temp.equals(graph.codeChunk.frame.RV)) continue;
+                ImcMOVE moveStatement = (ImcMOVE) node.statement;
+                if (!(moveStatement.dst instanceof ImcTEMP)) continue;
+                if (!(moveStatement.src instanceof ImcTEMP)) continue;
 
-            // Check if there is only one use of moveStatement.src temporary
-            HashSet<ControlFlowGraphNode> sourceUses = uses.get(moveStatement.src);
-            if (sourceUses == null) continue;
-            if (sourceUses.size() != 1) continue;
+                // Do not remove statement RV <- ...
+                if (((ImcTEMP) moveStatement.dst).temp.equals(graph.codeChunk.frame.RV)) continue;
 
-            // The current [node] is a copy statement T1 <- T2. If there is only
-            // one definition of T2 <- a + b, we can replace current
-            // statement with T1 <- a + b.
-            HashSet<ControlFlowGraphNode> sourceDefinitions = definitions.get(moveStatement.src);
-            if (sourceDefinitions == null) continue;
-            if (sourceDefinitions.size() != 1) continue;
+                // Check if there is only one use of moveStatement.src temporary
+                HashSet<ControlFlowGraphNode> sourceUses = uses.get(moveStatement.src);
+                if (sourceUses == null) continue;
+                if (sourceUses.size() != 1) continue;
 
-            ControlFlowGraphNode sourceDefinitionNode = sourceDefinitions.iterator().next();
-            if (!(sourceDefinitionNode.statement instanceof ImcMOVE)) continue;
-            ImcExpr sourceExpression = ((ImcMOVE) sourceDefinitionNode.statement).src;
-            
-            ImcStmt modifiedStatement = new ImcMOVE(moveStatement.dst, sourceExpression);
-            Report.debug("  * Replacing statement " + sourceDefinitionNode.statement + " with " + modifiedStatement);
-            sourceDefinitionNode.statement = modifiedStatement;
-            nodesToRemove.add(node);
-            hasGraphChanged = true;
+                // The current [node] is a copy statement T1 <- T2. If there is only
+                // one definition of T2 <- a + b, we can replace current
+                // statement with T1 <- a + b.
+                HashSet<ControlFlowGraphNode> sourceDefinitions = definitions.get(moveStatement.src);
+                if (sourceDefinitions == null) continue;
+                if (sourceDefinitions.size() != 1) continue;
 
-        }
+                ControlFlowGraphNode sourceDefinitionNode = sourceDefinitions.iterator().next();
+                if (!(sourceDefinitionNode.statement instanceof ImcMOVE)) continue;
+                ImcExpr sourceExpression = ((ImcMOVE) sourceDefinitionNode.statement).src;
+                
+                ImcStmt modifiedStatement = new ImcMOVE(moveStatement.dst, sourceExpression);
+                Report.debug("  * Replacing statement " + sourceDefinitionNode.statement + " with " + modifiedStatement);
+                sourceDefinitionNode.statement = modifiedStatement;
+                Report.debug(" Statement is now: " + sourceDefinitionNode.statement);
 
-        for (ControlFlowGraphNode node : nodesToRemove) {
-            Report.debug("  * Removing statement " + node.statement);
-            graph.removeNode(node);
-            hasGraphChanged = true;
+                graph.removeNode(node);
+                repeat = true;
+                hasGraphChanged = true;
+                break;
+
+            }
         }
         
         return hasGraphChanged;
