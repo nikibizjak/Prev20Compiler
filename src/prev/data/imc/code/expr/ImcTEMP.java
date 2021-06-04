@@ -37,7 +37,24 @@ public class ImcTEMP extends ImcExpr {
 
 	@Override
 	public String toString() {
-		return "TEMP(" + temp.temp + ")";
+		return "T" + temp.temp;
+	}
+
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcTEMP)) {
+			return false;
+		}
+		ImcTEMP imcTEMP = (ImcTEMP) o;
+		return temp.equals(imcTEMP.temp);
+	}
+
+	@Override
+	public int hashCode() {
+		return temp.hashCode();
 	}
 
 }

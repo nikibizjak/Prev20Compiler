@@ -1,19 +1,24 @@
 package prev.phase.all;
 
 import java.io.BufferedWriter;
-import java.util.*;
-import java.io.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.util.HashMap;
+import java.util.Vector;
 
-import prev.data.mem.*;
 import prev.Compiler;
-import prev.data.asm.*;
+import prev.data.asm.AsmInstr;
+import prev.data.asm.AsmLABEL;
+import prev.data.asm.AsmOPER;
+import prev.data.asm.Code;
 import prev.data.lin.LinDataChunk;
-import prev.phase.*;
-import prev.phase.asmgen.*;
+import prev.data.mem.MemFrame;
+import prev.data.mem.MemLabel;
+import prev.data.mem.MemTemp;
+import prev.phase.Phase;
+import prev.phase.asmgen.AsmGen;
+import prev.phase.asmgen.ExprGenerator;
 import prev.phase.imclin.ImcLin;
-import prev.phase.livean.*;
-import prev.phase.regall.RegAll;
-import prev.data.semtype.*;
 
 /**
  * Register allocation.

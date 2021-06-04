@@ -1,23 +1,39 @@
 package prev;
 
-import java.util.*;
+import java.util.HashMap;
 
-import org.antlr.v4.runtime.*;
+import org.antlr.v4.runtime.Token;
 
-import prev.common.report.*;
-import prev.data.ast.tree.*;
-import prev.phase.lexan.*;
-import prev.phase.synan.*;
-import prev.phase.abstr.*;
+import prev.common.report.Report;
+import prev.data.ast.tree.AstNode;
+import prev.data.lin.LinCodeChunk;
+import prev.phase.abstr.AbsLogger;
+import prev.phase.abstr.Abstr;
 import prev.phase.all.FinalPhase;
-import prev.phase.seman.*;
-import prev.phase.memory.*;
-import prev.phase.imcgen.*;
-import prev.phase.imclin.*;
-import prev.phase.asmgen.*;
-import prev.phase.livean.*;
-import prev.phase.regall.*;
-import prev.phase.optimisation.*;
+import prev.phase.asmgen.AsmGen;
+import prev.phase.imcgen.CodeGenerator;
+import prev.phase.imcgen.ImcGen;
+import prev.phase.imcgen.ImcLogger;
+import prev.phase.imclin.ChunkGenerator;
+import prev.phase.imclin.ImcLin;
+import prev.phase.imclin.Interpreter;
+import prev.phase.lexan.LexAn;
+import prev.phase.livean.LiveAn;
+import prev.phase.memory.VariableMemoryAnalysis;
+import prev.phase.memory.VariableMemoryAnalysisStaticLink;
+import prev.phase.memory.MemEvaluator;
+import prev.phase.memory.MemLogger;
+import prev.phase.memory.Memory;
+import prev.phase.optimisation.Optimisation;
+import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraph;
+import prev.phase.optimisation.common.control_flow_graph.ControlFlowGraphBuilder;
+import prev.phase.regall.RegAll;
+import prev.phase.seman.AddrResolver;
+import prev.phase.seman.NameResolver;
+import prev.phase.seman.SemAn;
+import prev.phase.seman.SemLogger;
+import prev.phase.seman.TypeResolver;
+import prev.phase.synan.SynAn;
 
 /**
  * The compiler.
@@ -27,13 +43,18 @@ public class Compiler {
 	// COMMAND LINE ARGUMENTS
 
 	/** All valid phases of the compiler. */
-	private static final String phases = "none|lexan|synan|abstr|seman|memory|imcgen|optimisation|imclin|asmgen|livean|regall|all";
+	private static final String phases = "none|lexan|synan|abstr|seman|memory|imcgen|optimisation|interpreter|interpreter-optimisation|imclin|asmgen|livean|regall|all";
 
 	/** Values of command line arguments. */
 	private static HashMap<String, String> cmdLine = new HashMap<String, String>();
 
 	/* Total number of registers (not including FP, SP and HP) */
 	public static int numberOfRegisters = 64;
+
+	public static boolean printInterpreterStatistics = false;
+
+	/** Logging level of the compiler. */
+	public static Report.LoggingLevel loggingLevel = Report.DEFAULT_LOGGING_LEVEL;
 
 	/**
 	 * Returns the value of a command line argument.
@@ -55,7 +76,6 @@ public class Compiler {
 	 */
 	public static void main(String[] args) {
 		try {
-			Report.info("This is PREV'20 compiler:");
 
 			// Scan the command line.
 			for (int argc = 0; argc < args.length; argc++) {
@@ -97,6 +117,12 @@ public class Compiler {
 							continue;
 						}
 					}
+					if (args[argc].matches("--logging-level=.*")) {
+						if (cmdLine.get("--logging-level") == null) {
+							cmdLine.put("--logging-level", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
 					if (args[argc].matches("--num-regs=\\d+")) {
 						if (cmdLine.get("--num-regs") == null) {
 							cmdLine.put("--num-regs", args[argc].replaceFirst("^[^=]*=", ""));
@@ -106,6 +132,60 @@ public class Compiler {
 					if (args[argc].matches("--constant-folding=.*")) {
 						if (cmdLine.get("--constant-folding") == null) {
 							cmdLine.put("--constant-folding", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--symbolic-constant-folding=.*")) {
+						if (cmdLine.get("--symbolic-constant-folding") == null) {
+							cmdLine.put("--symbolic-constant-folding", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--peephole-optimisation=.*")) {
+						if (cmdLine.get("--peephole-optimisation") == null) {
+							cmdLine.put("--peephole-optimisation", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--constant-propagation=.*")) {
+						if (cmdLine.get("--constant-propagation") == null) {
+							cmdLine.put("--constant-propagation", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--copy-propagation=.*")) {
+						if (cmdLine.get("--copy-propagation") == null) {
+							cmdLine.put("--copy-propagation", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--common-subexpression-elimination=.*")) {
+						if (cmdLine.get("--common-subexpression-elimination") == null) {
+							cmdLine.put("--common-subexpression-elimination", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--dead-code-elimination=.*")) {
+						if (cmdLine.get("--dead-code-elimination") == null) {
+							cmdLine.put("--dead-code-elimination", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--loop-hoisting=.*")) {
+						if (cmdLine.get("--loop-hoisting") == null) {
+							cmdLine.put("--loop-hoisting", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--induction-variable-elimination=.*")) {
+						if (cmdLine.get("--induction-variable-elimination") == null) {
+							cmdLine.put("--induction-variable-elimination", args[argc].replaceFirst("^[^=]*=", ""));
+							continue;
+						}
+					}
+					if (args[argc].matches("--interpreter-statistics")) {
+						if (cmdLine.get("--interpreter-statistics") == null) {
+							printInterpreterStatistics = true;
 							continue;
 						}
 					}
@@ -127,6 +207,13 @@ public class Compiler {
 			}
 			if (cmdLine.get("--target-phase") == null) {
 				cmdLine.put("--target-phase", phases.replaceFirst("^.*\\|", ""));
+			}
+			if (cmdLine.get("--logging-level") != null) {
+				try {
+					loggingLevel = Report.LoggingLevel.valueOf(cmdLine.get("--logging-level"));
+				} catch (IllegalArgumentException exception) {
+					Report.warning("Invalid logging level, using " + loggingLevel);
+				}
 			}
 
 			String numberOfRegistersData = Compiler.cmdLineArgValue("--num-regs");
@@ -186,6 +273,9 @@ public class Compiler {
 
 				// Memory layout.
 				try (Memory memory = new Memory()) {
+					Abstr.tree.accept(new VariableMemoryAnalysis(), null);
+					Abstr.tree.accept(new VariableMemoryAnalysisStaticLink(), VariableMemoryAnalysisStaticLink.first());
+					Abstr.tree.accept(new VariableMemoryAnalysisStaticLink(), VariableMemoryAnalysisStaticLink.second());
 					Abstr.tree.accept(new MemEvaluator(), null);
 					Memory.frames.lock();
 					Memory.accesses.lock();
@@ -210,25 +300,49 @@ public class Compiler {
 				}
 				if (Compiler.cmdLineArgValue("--target-phase").equals("imcgen"))
 					break;
-
-				try (Optimisation optimisation = new Optimisation()) {
-					optimisation.optimise();
-					ImcGen.exprImc.lock();
-				}
-				if (Compiler.cmdLineArgValue("--target-phase").equals("optimisation"))
-					break;
 				
 				// Linearization of intermediate code.
 				try (ImcLin imclin = new ImcLin()) {
 					Abstr.tree.accept(new ChunkGenerator(), null);
 					imclin.log();
-
-					//Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
-					//System.out.println("EXIT CODE: " + interpreter.run("_main"));
 				}
 				if (Compiler.cmdLineArgValue("--target-phase").equals("imclin"))
 					break;
 				
+				// Interpreter phase before the actual optimisation. This can be
+				// used to measure the optimisation.
+				boolean runInterpreter = Compiler.cmdLineArgValue("--target-phase").equals("interpreter") ||
+					Compiler.cmdLineArgValue("--target-phase").equals("interpreter-optimisation");
+				
+				if (runInterpreter) {
+					Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+					long exitCode = interpreter.run("_main", printInterpreterStatistics);
+					System.out.printf("Exit code: %d%n", exitCode);
+					if (Compiler.cmdLineArgValue("--target-phase").equals("interpreter"))
+						break;
+				}
+
+				// Optimize generated intermediate code. The optimizer will
+				// modify code chunks in ImcLin.codeChunks Vector.
+				try (Optimisation optimisation = new Optimisation()) {
+					optimisation.run();
+					optimisation.log();
+				}
+				if (Compiler.cmdLineArgValue("--target-phase").equals("optimisation"))
+					break;
+				
+				// Additional phase that can only be executed using
+				// --target-phase=interpreter-optimisation flag. It runs the
+				// code using intermediate representation interpreter after it
+				// has been optimized.
+				if (runInterpreter) {
+					Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+					long exitCode = interpreter.run("_main", printInterpreterStatistics);
+					System.out.printf("Exit code: %d%n", exitCode);
+					if (Compiler.cmdLineArgValue("--target-phase").equals("interpreter-optimisation"))
+						break;
+				}
+								
 				// Machine code generation.
 				try (AsmGen asmgen = new AsmGen()) {
 					asmgen.genAsmCodes();

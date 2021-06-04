@@ -39,7 +39,23 @@ public class ImcMEM extends ImcExpr {
 
 	@Override
 	public String toString() {
-		return "MEM(" + addr.toString() + ")";
+		return "M[" + addr.toString() + "]";
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcMEM)) {
+			return false;
+		}
+		ImcMEM imcMEM = (ImcMEM) o;
+		return addr.equals(imcMEM.addr);
+	}
+
+	@Override
+	public int hashCode() {
+		return addr.hashCode();
 	}
 
 }

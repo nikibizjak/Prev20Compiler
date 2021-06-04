@@ -47,6 +47,20 @@ public class MemFrame implements Loggable {
 		this.RV = new MemTemp();
 	}
 
+	public MemFrame(MemLabel label, int depth, long size, long locsSize, long argsSize, MemTemp fp, MemTemp rv) {
+		this.label = label;
+		this.depth = depth;
+		this.size = size;
+		this.locsSize = locsSize;
+		this.argsSize = argsSize;
+		this.FP = fp;
+		this.RV = rv;
+	}
+
+	public MemFrame copyWithLabel(MemLabel newLabel) {
+		return new MemFrame(newLabel, this.depth, this.size, this.locsSize, this.argsSize, this.FP, this.RV);
+	}
+
 	@Override
 	public void log(Logger logger) {
 		if (logger == null)

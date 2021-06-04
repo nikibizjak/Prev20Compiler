@@ -4,7 +4,6 @@ import java.util.*;
 
 import prev.data.mem.*;
 import prev.Compiler;
-import prev.common.report.Report;
 import prev.data.asm.*;
 import prev.phase.*;
 import prev.phase.asmgen.*;
@@ -235,10 +234,7 @@ public class RegAll extends Phase {
 
 	public void allocate() {
 
-		long start = System.currentTimeMillis();
 		for (Code code : AsmGen.codes) {
-
-			// System.out.println("REGISTER ALLOCATION: " + code.frame.label.name);
 			
 			boolean coloringFound;
 			Graph reconstructedGraph = null;
@@ -283,8 +279,6 @@ public class RegAll extends Phase {
 			}
 
 		}
-		long end = System.currentTimeMillis();
-		Report.info("Register allocation time: " + (end - start));
 
 	}
 	

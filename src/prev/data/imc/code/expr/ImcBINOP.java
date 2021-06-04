@@ -51,9 +51,50 @@ public class ImcBINOP extends ImcExpr {
 		logger.endElement();
 	}
 
+	public String operator() {
+		switch (this.oper) {
+			case OR: return "|";
+			case AND: return "&";
+			case EQU: return "==";
+			case NEQ: return "!=";
+			case LTH: return "<";
+			case GTH: return ">";
+			case LEQ: return "<=";
+			case GEQ: return ">=";
+			case ADD: return "+";
+			case SUB: return "-";
+			case MUL: return "*";
+			case DIV: return "/";
+			case MOD: return "%";
+			default: return "?";
+		}
+	}
+
 	@Override
 	public String toString() {
-		return "BINOP(" + oper + "," + fstExpr.toString() + "," + sndExpr.toString() + ")";
+		return String.format("%s %s %s", fstExpr, operator(), sndExpr);
+	}
+
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcBINOP)) {
+			return false;
+		}
+		ImcBINOP imcBINOP = (ImcBINOP) o;
+		return oper == imcBINOP.oper && fstExpr.equals(imcBINOP.fstExpr) && sndExpr.equals(imcBINOP.sndExpr);
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = result * prime * oper.hashCode();
+		result = result * prime * fstExpr.hashCode();
+		result = result * prime * sndExpr.hashCode();
+		return result;
 	}
 
 }

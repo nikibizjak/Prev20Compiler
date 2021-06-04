@@ -1,14 +1,16 @@
 package prev.phase.livean;
 
-import prev.common.report.*;
-import prev.data.mem.*;
-import prev.data.asm.*;
-import prev.phase.*;
-import prev.phase.asmgen.*;
-
-import java.util.HashSet;
 import java.util.HashMap;
-import java.util.Vector;
+import java.util.HashSet;
+
+import prev.data.asm.AsmInstr;
+import prev.data.asm.AsmLABEL;
+import prev.data.asm.AsmOPER;
+import prev.data.asm.Code;
+import prev.data.mem.MemLabel;
+import prev.data.mem.MemTemp;
+import prev.phase.Phase;
+import prev.phase.asmgen.AsmGen;
 
 /**
  * Liveness analysis.
@@ -20,16 +22,12 @@ public class LiveAn extends Phase {
 	}
 
 	public void analysis() {
-		long start = System.currentTimeMillis();
 		for (Code code : AsmGen.codes) {
 			analysis(code);
 		}
-		long end = System.currentTimeMillis();
-		// Report.info("Total time: " + (end - start));
 	}
 	
 	public void analysis(Code code) {
-		long start = System.currentTimeMillis();
 		HashMap<MemLabel, Integer> successors = new HashMap<MemLabel, Integer>();
 		for (int i = 0; i < code.instrs.size(); i++) {
 			AsmInstr instruction = code.instrs.get(i);
@@ -72,8 +70,6 @@ public class LiveAn extends Phase {
 					for (MemLabel label : instr.jumps()) {
 						Integer lineNumber = successors.get(label);
 						if (lineNumber == null) {
-							// System.out.println(label.name);
-							// System.out.println("There is no successor... " + lineNumber);
 							continue;
 						}
 						int line = lineNumber.intValue();
@@ -97,8 +93,6 @@ public class LiveAn extends Phase {
 			}
 
 		} while (repeat);
-		long end = System.currentTimeMillis();
-		// Report.info("Code " + code.frame.label.name + " time: " + (end - start));
 
 	}
 	

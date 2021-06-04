@@ -47,7 +47,30 @@ public class ImcUNOP extends ImcExpr {
 
 	@Override
 	public String toString() {
-		return "UNOP(" + oper + "," + subExpr.toString() + ")";
+		char operator = oper == Oper.NOT ? '!' : '-';
+		return String.format("%c%s", operator, subExpr.toString());
 	}
+
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof ImcUNOP)) {
+			return false;
+		}
+		ImcUNOP imcUNOP = (ImcUNOP) o;
+		return oper == imcUNOP.oper && subExpr.equals(imcUNOP.subExpr);
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = result * prime * oper.hashCode();
+		result = result * prime * subExpr.hashCode();
+		return result;
+	}
+
 
 }

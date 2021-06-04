@@ -51,7 +51,7 @@ public class ImcCJUMP extends ImcStmt {
 
 	@Override
 	public String toString() {
-		return "CJUMP(" + cond.toString() + "," + posLabel.name + "," + negLabel.name + ")";
+		return "if (" + cond.toString() + ") JUMP " + posLabel.name + " else JUMP " + negLabel.name;
 	}
 
 }

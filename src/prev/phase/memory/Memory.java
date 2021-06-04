@@ -20,6 +20,9 @@ public class Memory extends Phase {
 	/** Maps string constants to accesses. */
 	public static final AstAttribute<AstAtomExpr, MemAbsAccess> strings = new AstAttribute<AstAtomExpr, MemAbsAccess>(0);
 
+	/** Indicates whether the variable can be represented in register or not. */
+	public static final AstAttribute<AstDecl, Boolean> isRegisterRepresentable = new AstAttribute<AstDecl, Boolean>(0);
+
 	/**
 	 * Constructs a new phase for computing layout.
 	 */

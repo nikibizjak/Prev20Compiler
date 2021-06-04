@@ -22,4 +22,20 @@ public class MemTemp {
 		return "T" + temp;
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+		if (!(o instanceof MemTemp)) {
+			return false;
+		}
+		MemTemp memTemp = (MemTemp) o;
+		return temp == memTemp.temp;
+	}
+
+	@Override
+	public int hashCode() {
+		return Long.hashCode(temp);
+	}
+
 }

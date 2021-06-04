@@ -1,18 +1,25 @@
 package prev.phase.imcgen;
 
-import java.util.*;
+import java.util.Stack;
+import java.util.Vector;
 
-import prev.data.ast.tree.*;
-import prev.data.ast.tree.expr.*;
-import prev.data.ast.tree.decl.*;
-import prev.data.ast.tree.stmt.*;
-import prev.data.ast.visitor.*;
-import prev.data.semtype.*;
-import prev.data.mem.*;
-import prev.phase.memory.*;
-import prev.phase.seman.*;
-import prev.data.imc.code.expr.*;
-import prev.data.imc.code.stmt.*;
+import prev.data.ast.tree.stmt.AstAssignStmt;
+import prev.data.ast.tree.stmt.AstCompoundStmt;
+import prev.data.ast.tree.stmt.AstExprStmt;
+import prev.data.ast.tree.stmt.AstIfStmt;
+import prev.data.ast.tree.stmt.AstStmt;
+import prev.data.ast.tree.stmt.AstWhileStmt;
+import prev.data.ast.visitor.AstFullVisitor;
+import prev.data.imc.code.expr.ImcExpr;
+import prev.data.imc.code.stmt.ImcCJUMP;
+import prev.data.imc.code.stmt.ImcESTMT;
+import prev.data.imc.code.stmt.ImcJUMP;
+import prev.data.imc.code.stmt.ImcLABEL;
+import prev.data.imc.code.stmt.ImcMOVE;
+import prev.data.imc.code.stmt.ImcSTMTS;
+import prev.data.imc.code.stmt.ImcStmt;
+import prev.data.mem.MemFrame;
+import prev.data.mem.MemLabel;
 
 // public class StmtGenerator extends AstNullVisitor<Object, Stack<MemFrame>> {
 public class StmtGenerator extends AstFullVisitor<ImcStmt, Stack<MemFrame>> {
