@@ -193,9 +193,9 @@ public class Interpreter {
 			case AND:
 				return (fstExpr != 0) & (sndExpr != 0) ? 1L : 0L;
 			case EQU:
-				return (fstExpr == sndExpr) ? 1L : 0L;
+				return (fstExpr.longValue() == sndExpr.longValue()) ? 1L : 0L;
 			case NEQ:
-				return (fstExpr != sndExpr) ? 1L : 0L;
+				return (fstExpr.longValue() != sndExpr.longValue()) ? 1L : 0L;
 			case LEQ:
 				return (fstExpr <= sndExpr) ? 1L : 0L;
 			case GEQ:
