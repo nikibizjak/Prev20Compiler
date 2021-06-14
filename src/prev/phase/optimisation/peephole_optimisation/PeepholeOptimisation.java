@@ -53,7 +53,6 @@ public class PeepholeOptimisation {
     }
 
     public static HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> uses(ControlFlowGraph graph) {
-        LivenessAnalysis.run(graph);
 		HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> uses = new HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>>();
 		for (ControlFlowGraphNode node : graph.nodes) {
             HashSet<ImcTEMP> nodeUses = node.getUses();
@@ -75,8 +74,11 @@ public class PeepholeOptimisation {
         // should change to true.
         boolean hasGraphChanged = false;
 
-        boolean repeat = false;
+        boolean repeat = true;
         while (repeat) {
+            repeat = false;
+
+            LivenessAnalysis.run(graph);
 
             HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> definitions = ReachingDefinitionsAnalysis.definitions(graph);
             HashMap<ImcTEMP, HashSet<ControlFlowGraphNode>> uses = uses(graph);
