@@ -1,0 +1,53 @@
+fun main():integer =
+    {
+      n=8;
+      n=queens(0);
+      n;
+    }
+    where
+    {
+      var n:integer
+      var qs:[32]integer
+      fun queens(i:integer):integer =
+          {
+            if i==n then
+              {
+                j=0;
+                while j<n do {
+                  i=0;
+                  while i<n do {
+                    i=i+1;
+                  };
+                  j=j+1;
+                };
+                all=1;
+              }
+            else
+              {
+                all=0;
+                j=0;
+                while j<n do {
+                  qs[i]=j;
+                  ok=true;
+                  {
+                    k=0;
+                    while k<i do {
+                      ok=ok&(qs[k]!=qs[i]);
+                      ok=ok&(qs[k]-qs[i]!=k-i);
+                      ok=ok&(qs[k]-qs[i]!=i-k);
+                      k=k+1;
+                    };
+                  } where { var k:integer };
+                  if ok then all=all+queens(i+1) else none;
+                  j=j+1;
+                };
+              };
+            all;
+          }
+          where
+          {
+            var j:integer
+            var ok:boolean
+            var all:integer
+          }
+    }

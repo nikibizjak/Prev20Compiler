@@ -1,0 +1,46 @@
+fun nextCollatzTerm(n: integer): integer = {
+    if (n % 2 == 0) then {
+        result = n / 2;
+    } else {
+        result = 3 * n + 1;
+    };
+    result;
+} where {
+    var result: integer
+}
+
+fun lengthOfCollatzSequence(initialTerm: integer): integer = {
+    currentTerm = initialTerm;
+    sequenceLength = 0;
+
+    while (currentTerm != 1) do {
+        currentTerm = nextCollatzTerm(currentTerm);
+        sequenceLength = sequenceLength + 1;
+    };
+
+    sequenceLength;
+} where {
+    var currentTerm: integer
+    var sequenceLength: integer
+}
+
+fun main(): integer = {
+    i = 2;
+    longestSequenceTerm = 1;
+    longestSequence = 1;
+    while (i < 10000) do {
+        sequenceLength = lengthOfCollatzSequence(i);
+        if (sequenceLength > longestSequence) then {
+            longestSequence = sequenceLength;
+            longestSequenceTerm = i;
+        } else { none; };
+        i = i + 1;
+    } where {
+        var sequenceLength: integer
+    };
+    longestSequenceTerm;
+} where {
+    var i: integer
+    var longestSequenceTerm: integer
+    var longestSequence: integer
+}

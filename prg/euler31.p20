@@ -1,0 +1,51 @@
+fun main(): integer = {
+    value = 200;
+
+    result = 0;
+    
+    {
+        a = value;
+        while (a >= 0) do {
+            b = a;
+            while (b >= 0) do {
+                c = b;
+                while (c >= 0) do {
+                    d = c;
+                    while (d >= 0) do {
+                        e = d;
+                        while (e >= 0) do {
+                            f = e;
+                            while (f >= 0) do {
+                                g = f;
+                                while (g >= 0) do {
+                                    result = result + 1;
+                                    g = g - 2;
+                                };
+                                f = f - 5;
+                            };
+                            e = e - 10;
+                        };
+                        d = d - 20;
+                    };
+                    c = c - 50;
+                };
+                b = b - 100;
+            };
+            a = a - 200;
+        };
+    } where {
+        var a: integer
+        var b: integer
+        var c: integer
+        var d: integer
+        var e: integer
+        var f: integer
+        var g: integer
+        var h: integer
+    };
+
+    result;
+} where {
+    var value: integer
+    var result: integer
+}

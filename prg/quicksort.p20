@@ -1,0 +1,64 @@
+fun quicksort(numbers: ^[10]integer, first: integer, last: integer): void = {
+
+   if (first < last) then {
+      pivot=first;
+      i=first;
+      j=last;
+
+      while (i < j) do {
+         while ((numbers^[i] <= numbers^[pivot]) & (i < last)) do {
+            i = i + 1;
+         };
+         while(numbers^[j] > numbers^[pivot]) do {
+            j = j - 1;
+         };
+         if (i < j) then {
+            temp = numbers^[i];
+            numbers^[i] = numbers^[j];
+            numbers^[j] = temp;
+         } else {
+             none;
+         };
+      };
+
+      temp = numbers^[pivot];
+      numbers^[pivot] = numbers^[j];
+      numbers^[j] = temp;
+      quicksort(numbers, first, j - 1);
+      quicksort(numbers, j + 1, last);
+
+   } else {
+       none;
+   };
+} where {
+    var i: integer
+    var j: integer
+    var pivot: integer
+    var temp: integer
+}
+
+fun main(): integer = {
+
+   i = 0;
+   while (i < 1000) do {
+      array[0] = 8;
+      array[1] = 5;
+      array[2] = 2;
+      array[3] = 1;
+      array[4] = 9;
+      array[5] = 6;
+      array[6] = 7;
+      array[7] = 4;
+      array[8] = 3;
+      array[9] = 0;
+      quicksort(^array, 0, 9);
+      result = array[6];
+      i = i + 1;
+   };
+
+   result;
+} where {
+   var i: integer
+   var result: integer
+   var array: [10]integer
+}

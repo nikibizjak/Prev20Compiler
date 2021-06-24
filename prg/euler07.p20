@@ -1,0 +1,35 @@
+fun main(): integer = {
+
+    i = 2;
+    primesFound = 0;
+    while (primesFound < 10001) do {
+        if (isPrime(i)) then {
+            primesFound = primesFound + 1;
+        } else { none; };
+        i = i + 1;
+    };
+
+    i - 1;
+    
+} where {
+
+    var i: integer
+    var primesFound: integer
+
+    fun isPrime(number: integer): boolean = {
+        i = 2;
+        primeFactorFound = false;
+        while (!primeFactorFound & i * i <= number) do {
+            if (number % i == 0) then {
+                primeFactorFound = true;
+            } else {
+                none;
+            };
+            i = i + 1;
+        };
+        !primeFactorFound;
+    } where {
+        var primeFactorFound: boolean
+        var i: integer
+    }
+}

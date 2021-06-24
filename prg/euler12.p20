@@ -1,0 +1,38 @@
+fun countDivisors(n: integer): integer = {
+    count = 2;
+    i = 2;
+    while (i < n) do {
+        if (n % i == 0) then {
+            count = count + 1;
+        } else {
+            none;
+        };
+        i = i + 1;
+    };
+    count;
+} where {
+    var count: integer
+    var i: integer
+}
+
+fun main(): integer = {
+
+    i = 1;
+    triangularNumber = 0;
+    repeat = true;
+
+    while (repeat) do {
+        if (countDivisors(triangularNumber) > 50) then {
+            repeat = false;
+        } else {
+            triangularNumber = triangularNumber + i;
+            i = i + 1;
+        };
+    };
+
+    triangularNumber;
+} where {
+    var i: integer
+    var triangularNumber: integer
+    var repeat: boolean
+}

@@ -1,0 +1,20 @@
+fun main(): integer = {
+    i = 0;
+    sum = 0;
+    while (i < 95000) do {
+        if ((i % 3) == 0) then {
+            sum = sum + i;
+        } else {
+            if ((i % 5) == 0) then {
+                sum = sum + i;
+            } else {
+                none;
+            };
+        };
+        i = i + 1;
+    };
+    sum;
+} where {
+    var i: integer
+    var sum: integer
+}
